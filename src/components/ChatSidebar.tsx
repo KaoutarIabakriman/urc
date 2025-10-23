@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
     Box,
     List,
@@ -12,76 +13,96 @@ import {
     Badge,
     TextField,
     InputAdornment,
+    CircularProgress,
+    Alert,
+    Button,
 } from '@mui/material'
 import {
     Search,
     Person,
-    Group,
+    Refresh,
 } from '@mui/icons-material'
-import { useChatStore, Conversation } from '../stores/useChatStore'
+import { useChatStore, User } from '../stores/useChatStore'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const ChatSidebar: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('')
-    const [users, setUsers] = useState<any[]>([])
-    const { conversations, currentConversation, setCurrentConversation } = useChatStore()
+    const navigate = useNavigate()
+
+    const {
+        users,
+        conversations,
+        currentConversation,
+        setCurrentConversation,
+        isLoading,
+        error,
+        fetchUsers,
+        createPrivateConversation,
+        clearError
+    } = useChatStore()
+
     const { user: currentUser } = useAuthStore()
 
     useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const token = localStorage.getItem('token')
-                const response = await fetch('/api/users', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                })
+        fetchUsers()
+    }, [fetchUsers])
 
-                if (response.ok) {
-                    const usersData = await response.json()
-                    const otherUsers = usersData.filter((u: any) => u.id !== currentUser?.id)
-                    setUsers(otherUsers)
+    const formatLastConnection = (dateString: string) => {
+        try {
+            const date = new Date(dateString)
+            const now = new Date()
+            const diffTime = Math.abs(now.getTime() - date.getTime())
+            const diffMinutes = Math.floor(diffTime / (1000 * 60))
+            const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
-                    const userConversations: Conversation[] = otherUsers.map((user: any) => ({
-                        id: user.id,
-                        name: user.username,
-                        type: 'private',
-                        last_message: 'Aucun message',
-                        last_message_time: new Date(user.last_connection),
-                        unread_count: 0
-                    }))
-                    useChatStore.getState().setConversations(userConversations)
-                }
-            } catch (error) {
-                console.error('Erreur chargement utilisateurs:', error)
-            }
+            if (diffMinutes < 1) return 'À l\'instant'
+            if (diffMinutes < 60) return `Il y a ${diffMinutes} min`
+            if (diffHours < 24) return `Il y a ${diffHours} h`
+            if (diffDays === 1) return 'Hier'
+            return `Il y a ${diffDays} jours`
+        } catch {
+            return 'Date inconnue'
         }
-
-        if (currentUser) {
-            fetchUsers()
-        }
-    }, [currentUser])
+    }
 
     const filteredConversations = conversations.filter(conv =>
         conv.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-    const handleConversationSelect = (conversation: Conversation) => {
+    const handleUserSelect = (user: User) => {
+        const conversation = createPrivateConversation(user)
         setCurrentConversation(conversation)
+        navigate(`/messages/user/${user.id}`)
+    }
+
+    const handleRetry = () => {
+        clearError()
+        fetchUsers()
     }
 
     return (
         <Box sx={{ width: 320, height: '100vh', bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider' }}>
-            {/* En-tête */}
+            {/* En-tête avec bouton recharger */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography variant="h6" component="h2" gutterBottom>
-                    Messages
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" component="h2">
+                        Messages
+                    </Typography>
+                    <Button
+                        startIcon={<Refresh />}
+                        onClick={handleRetry}
+                        disabled={isLoading}
+                        size="small"
+                    >
+                        Actualiser
+                    </Button>
+                </Box>
+
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Rechercher..."
+                    placeholder="Rechercher un utilisateur..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     InputProps={{
@@ -94,88 +115,97 @@ const ChatSidebar: React.FC = () => {
                 />
             </Box>
 
+            {error && (
+                <Alert
+                    severity="error"
+                    sx={{ m: 2 }}
+                    action={
+                        <Button color="inherit" size="small" onClick={handleRetry}>
+                            Réessayer
+                        </Button>
+                    }
+                >
+                    {error}
+                </Alert>
+            )}
+
+            {isLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                    <CircularProgress size={24} />
+                </Box>
+            )}
 
             <List sx={{ p: 0, overflow: 'auto', height: 'calc(100vh - 120px)' }}>
-                {filteredConversations.map((conversation) => (
-                    <ListItem key={conversation.id} disablePadding>
-                        <ListItemButton
-                            selected={currentConversation?.id === conversation.id}
-                            onClick={() => handleConversationSelect(conversation)}
-                            sx={{
-                                '&.Mui-selected': {
-                                    bgcolor: 'primary.light',
-                                    '&:hover': {
+                {filteredConversations.map((conversation) => {
+                    const targetUser = users.find(u => u.id === conversation.target_user_id)
+
+                    return (
+                        <ListItem key={conversation.id} disablePadding>
+                            <ListItemButton
+                                selected={currentConversation?.id === conversation.id}
+                                onClick={() => targetUser && handleUserSelect(targetUser)}
+                                sx={{
+                                    '&.Mui-selected': {
                                         bgcolor: 'primary.light',
+                                        '&:hover': { bgcolor: 'primary.light' },
                                     },
-                                },
-                            }}
-                        >
-                            <ListItemAvatar>
-                                <Badge
-                                    color="success"
-                                    variant="dot"
-                                    invisible={conversation.type === 'room'}
-                                    anchorOrigin={{
-                                        vertical: 'bottom',
-                                        horizontal: 'right',
-                                    }}
-                                >
-                                    <Avatar sx={{ bgcolor: conversation.type === 'private' ? 'primary.main' : 'secondary.main' }}>
-                                        {conversation.type === 'private' ? <Person /> : <Group />}
-                                    </Avatar>
-                                </Badge>
-                            </ListItemAvatar>
+                                }}
+                            >
+                                <ListItemAvatar>
+                                    <Badge
+                                        color="success"
+                                        variant="dot"
+                                        invisible={!targetUser?.last_connection ||
+                                            Date.now() - new Date(targetUser.last_connection).getTime() > 5 * 60 * 1000
+                                        }
+                                    >
+                                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                                            <Person />
+                                        </Avatar>
+                                    </Badge>
+                                </ListItemAvatar>
 
-                            <ListItemText
-                                primary={
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <Typography variant="subtitle1" noWrap>
-                                            {conversation.name}
+                                <ListItemText
+                                    primary={
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'medium' }}>
+                                                {conversation.name}
+                                            </Typography>
+                                            {conversation.unread_count > 0 && (
+                                                <Chip
+                                                    label={conversation.unread_count}
+                                                    size="small"
+                                                    color="primary"
+                                                    sx={{ minWidth: 20, height: 20, fontSize: '0.75rem' }}
+                                                />
+                                            )}
+                                        </Box>
+                                    }
+                                    secondary={
+                                        <Typography variant="body2" color="text.secondary" noWrap>
+                                            {targetUser?.last_connection
+                                                ? `Connecté ${formatLastConnection(targetUser.last_connection)}`
+                                                : 'Dernière connexion inconnue'
+                                            }
                                         </Typography>
-                                        {conversation.unread_count > 0 && (
-                                            <Chip
-                                                label={conversation.unread_count}
-                                                size="small"
-                                                color="primary"
-                                                sx={{ minWidth: 20, height: 20 }}
-                                            />
-                                        )}
-                                    </Box>
-                                }
-                                secondary={
-                                    <Typography variant="body2" color="text.secondary" noWrap>
-                                        {conversation.last_message}
-                                    </Typography>
-                                }
-                            />
-                        </ListItemButton>
-                    </ListItem>
-                ))}
+                                    }
+                                />
+                            </ListItemButton>
+                        </ListItem>
+                    )
+                })}
 
-                {filteredConversations.length === 0 && (
+                {filteredConversations.length === 0 && !isLoading && (
                     <Box sx={{ p: 3, textAlign: 'center' }}>
                         <Typography variant="body2" color="text.secondary">
-                            {searchTerm ? 'Aucune conversation trouvée' : 'Aucune conversation'}
+                            {searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'}
                         </Typography>
                     </Box>
                 )}
             </List>
-
-
-            <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Salons de discussion
-                </Typography>
-                <Chip
-                    icon={<Group />}
-                    label="Rejoindre un salon"
-                    variant="outlined"
-                    onClick={() => {/* À implémenter */}}
-                    sx={{ width: '100%', justifyContent: 'flex-start' }}
-                />
-            </Box>
         </Box>
     )
 }
+
 
 export default ChatSidebar
