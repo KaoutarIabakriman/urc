@@ -27,6 +27,7 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 const ChatSidebar: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('')
+    const [localError, setLocalError] = useState<string | null>(null)
     const navigate = useNavigate()
 
     const {
@@ -38,14 +39,25 @@ const ChatSidebar: React.FC = () => {
         error,
         fetchUsers,
         createPrivateConversation,
-        clearError
+        clearError,
+        loadConversations
     } = useChatStore()
 
     const { user: currentUser } = useAuthStore()
 
     useEffect(() => {
-        fetchUsers()
-    }, [fetchUsers])
+        const loadData = async () => {
+            try {
+                setLocalError(null)
+                await loadConversations()
+            } catch (err) {
+                console.error('Erreur lors du chargement:', err)
+                setLocalError('Impossible de charger les conversations')
+            }
+        }
+
+        loadData()
+    }, [loadConversations])
 
     const formatLastConnection = (dateString: string) => {
         try {
@@ -77,9 +89,12 @@ const ChatSidebar: React.FC = () => {
     }
 
     const handleRetry = () => {
+        setLocalError(null)
         clearError()
-        fetchUsers()
+        loadConversations()
     }
+
+    const displayError = localError || error
 
     return (
         <Box sx={{ width: 320, height: '100vh', bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider' }}>
@@ -102,7 +117,7 @@ const ChatSidebar: React.FC = () => {
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Rechercher un utilisateur..."
+                    placeholder="Rechercher une conversation..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     InputProps={{
@@ -115,7 +130,7 @@ const ChatSidebar: React.FC = () => {
                 />
             </Box>
 
-            {error && (
+            {displayError && (
                 <Alert
                     severity="error"
                     sx={{ m: 2 }}
@@ -125,7 +140,7 @@ const ChatSidebar: React.FC = () => {
                         </Button>
                     }
                 >
-                    {error}
+                    {displayError}
                 </Alert>
             )}
 
@@ -143,7 +158,21 @@ const ChatSidebar: React.FC = () => {
                         <ListItem key={conversation.id} disablePadding>
                             <ListItemButton
                                 selected={currentConversation?.id === conversation.id}
-                                onClick={() => targetUser && handleUserSelect(targetUser)}
+                                onClick={() => {
+                                    if (targetUser) {
+                                        handleUserSelect(targetUser)
+                                    } else {
+                                        // Créer un utilisateur temporaire si non trouvé
+                                        const tempUser: User = {
+                                            id: conversation.target_user_id || 'unknown',
+                                            username: conversation.name,
+                                            email: '',
+                                            external_id: '',
+                                            last_connection: new Date().toISOString()
+                                        }
+                                        handleUserSelect(tempUser)
+                                    }
+                                }}
                                 sx={{
                                     '&.Mui-selected': {
                                         bgcolor: 'primary.light',
@@ -160,7 +189,7 @@ const ChatSidebar: React.FC = () => {
                                         }
                                     >
                                         <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                            <Person />
+                                            {conversation.name.charAt(0).toUpperCase()}
                                         </Avatar>
                                     </Badge>
                                 </ListItemAvatar>
@@ -168,7 +197,12 @@ const ChatSidebar: React.FC = () => {
                                 <ListItemText
                                     primary={
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Typography variant="subtitle1" noWrap sx={{ fontWeight: 'medium' }}>
+                                            <Typography
+                                                variant="subtitle1"
+                                                noWrap
+                                                sx={{ fontWeight: 'medium' }}
+                                                component="div" // 🔥 CORRECTION : changer de p à div
+                                            >
                                                 {conversation.name}
                                             </Typography>
                                             {conversation.unread_count > 0 && (
@@ -182,30 +216,50 @@ const ChatSidebar: React.FC = () => {
                                         </Box>
                                     }
                                     secondary={
-                                        <Typography variant="body2" color="text.secondary" noWrap>
-                                            {targetUser?.last_connection
-                                                ? `Connecté ${formatLastConnection(targetUser.last_connection)}`
-                                                : 'Dernière connexion inconnue'
-                                            }
-                                        </Typography>
+                                        <Box component="div"> {/* 🔥 CORRECTION : explicitement div */}
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                noWrap
+                                                component="div" // 🔥 CORRECTION : changer de p à div
+                                            >
+                                                {conversation.last_message || 'Aucun message'}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                component="div" // 🔥 CORRECTION : changer de p à div
+                                            >
+                                                {conversation.last_message_time && formatLastConnection(conversation.last_message_time.toString())}
+                                            </Typography>
+                                        </Box>
                                     }
+                                    primaryTypographyProps={{ component: 'div' }} // 🔥 CORRECTION supplémentaire
+                                    secondaryTypographyProps={{ component: 'div' }} // 🔥 CORRECTION supplémentaire
                                 />
                             </ListItemButton>
                         </ListItem>
                     )
                 })}
 
-                {filteredConversations.length === 0 && !isLoading && (
+                {filteredConversations.length === 0 && !isLoading && !displayError && (
                     <Box sx={{ p: 3, textAlign: 'center' }}>
                         <Typography variant="body2" color="text.secondary">
-                            {searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun utilisateur'}
+                            {searchTerm ? 'Aucune conversation trouvée' : 'Aucune conversation'}
                         </Typography>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            sx={{ mt: 1 }}
+                            onClick={() => fetchUsers()}
+                        >
+                            Charger les utilisateurs
+                        </Button>
                     </Box>
                 )}
             </List>
         </Box>
     )
 }
-
 
 export default ChatSidebar

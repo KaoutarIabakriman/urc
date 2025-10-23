@@ -12,13 +12,34 @@ import { useChatStore } from '../stores/useChatStore'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const MessageList: React.FC = () => {
-    const { messages, currentConversation } = useChatStore()
+    const { messages, currentConversation, loadMessages } = useChatStore()
     const { user: currentUser } = useAuthStore()
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    // 🔥 Charger les messages depuis PostgreSQL quand la conversation change
+    useEffect(() => {
+        if (currentConversation?.target_user_id) {
+            loadMessages(currentConversation.target_user_id)
+        }
+    }, [currentConversation, loadMessages])
+
+    // 🔥 Fonction pour formater le timestamp
+    const formatTimestamp = (timestamp: string | Date) => {
+        try {
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
+            return date.toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+            })
+        } catch (error) {
+            console.error('Erreur formatage timestamp:', error, timestamp)
+            return '--:--'
+        }
+    }
 
     if (!currentConversation) {
         return (
@@ -43,6 +64,7 @@ const MessageList: React.FC = () => {
         )
     }
 
+    // Afficher les messages ou le message de bienvenue si aucun message
     const displayMessages = messages.length > 0 ? messages : [
         {
             id: '1',
@@ -145,10 +167,7 @@ const MessageList: React.FC = () => {
                                             color="text.secondary"
                                             sx={{ mt: 0.5, mx: 1 }}
                                         >
-                                            {message.timestamp.toLocaleTimeString('fr-FR', {
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
+                                            {formatTimestamp(message.timestamp)} {/* 🔥 Utilisation de la fonction corrigée */}
                                         </Typography>
                                     </Box>
 

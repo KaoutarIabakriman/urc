@@ -15,33 +15,18 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 const MessageInput: React.FC = () => {
     const [message, setMessage] = useState('')
-    const { currentConversation, addMessage, isSending, setSending } = useChatStore()
+    const { currentConversation, isSending, sendMessage } = useChatStore() // Nouvelle action
     const { user: currentUser } = useAuthStore()
 
     const handleSendMessage = async () => {
-        if (!message.trim() || !currentConversation || !currentUser) return
-
-        const newMessage = {
-            id: Date.now().toString(),
-            content: message.trim(),
-            sender_id: currentUser.id,
-            sender_username: currentUser.username,
-            timestamp: new Date(),
-            conversation_id: currentConversation.id,
-            type: currentConversation.type,
-        }
-
-        setSending(true)
+        if (!message.trim() || !currentConversation?.target_user_id || !currentUser) return
 
         try {
-            console.log('Envoi du message:', newMessage)
-
-            addMessage(newMessage)
+            // 🔥 Utiliser la nouvelle action PostgreSQL
+            await sendMessage(message, currentConversation.target_user_id)
             setMessage('')
         } catch (error) {
             console.error('Erreur envoi message:', error)
-        } finally {
-            setSending(false)
         }
     }
 
