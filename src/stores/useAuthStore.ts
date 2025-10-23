@@ -1,34 +1,165 @@
-// stores/useAuthStore.ts
 import { create } from 'zustand'
 
-interface User {
+export interface User {
     id: string
     username: string
     email: string
+    externalId?: string
 }
 
 interface AuthState {
-    token: string | null
     user: User | null
-    isLoggedIn: boolean
+    token: string | null
     isLoading: boolean
-    login: (token: string, user: User) => void
+    isInitialized: boolean
+    error: string | null
+    login: (username: string, password: string) => Promise<void>
     logout: () => void
-    setLoading: (loading: boolean) => void
+    checkAuth: () => Promise<void>
+    clearError: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-    token: localStorage.getItem('token'),
     user: null,
-    isLoggedIn: !!localStorage.getItem('token'),
+    token: null,
     isLoading: false,
-    login: (token: string, user: User) => {
-        localStorage.setItem('token', token)
-        set({ token, user, isLoggedIn: true, isLoading: false })
+    isInitialized: false,
+    error: null,
+
+    login: async (username: string, password: string) => {
+        set({ isLoading: true, error: null })
+
+        try {
+            console.log('🔐 Tentative de connexion:', username)
+
+            // 🔥 CORRECTION : Utiliser /api/login au lieu de /api/auth/login
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            })
+
+            console.log('📥 Réponse login store - Status:', response.status)
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.message || 'Erreur de connexion')
+            }
+
+            const data = await response.json()
+            console.log('✅ Données reçues dans store:', data)
+
+            if (!data.token || !data.user) {
+                throw new Error('Données de connexion manquantes')
+            }
+
+            // Stocker le token
+            localStorage.setItem('auth_token', data.token)
+
+            // Mettre à jour le state
+            set({
+                user: {
+                    id: data.user.id.toString(),
+                    username: data.user.username,
+                    email: data.user.email,
+                    externalId: data.user.externalId,
+                },
+                token: data.token,
+                isLoading: false,
+                isInitialized: true,
+                error: null,
+            })
+
+            console.log('✅ Store auth mis à jour')
+        } catch (error) {
+            console.error('❌ Erreur login store:', error)
+            set({
+                user: null,
+                token: null,
+                isLoading: false,
+                error: error instanceof Error ? error.message : 'Erreur de connexion',
+            })
+            throw error
+        }
     },
+
     logout: () => {
-        localStorage.removeItem('token')
-        set({ token: null, user: null, isLoggedIn: false, isLoading: false })
+        console.log('🚪 Déconnexion')
+        localStorage.removeItem('auth_token')
+        set({
+            user: null,
+            token: null,
+            isInitialized: true,
+            error: null,
+        })
     },
-    setLoading: (loading: boolean) => set({ isLoading: loading })
+
+    checkAuth: async () => {
+        const token = localStorage.getItem('auth_token')
+
+        if (!token) {
+            console.log('❌ Pas de token trouvé')
+            set({ isInitialized: true, user: null, token: null })
+            return
+        }
+
+        set({ isLoading: true })
+
+        try {
+            console.log('🔍 Vérification session avec token:', token.substring(0, 20) + '...')
+
+            // 🔥 CORRECTION : Utiliser /api/session au lieu de /api/auth/session
+            const response = await fetch('/api/session', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            console.log('📥 Réponse session - Status:', response.status)
+
+            if (!response.ok) {
+                console.log('❌ Session invalide, nettoyage du token')
+                localStorage.removeItem('auth_token')
+                set({
+                    user: null,
+                    token: null,
+                    isLoading: false,
+                    isInitialized: true,
+                })
+                return
+            }
+
+            const data = await response.json()
+            console.log('✅ Session valide:', data)
+
+            set({
+                user: {
+                    id: data.id?.toString() || data.user_id?.toString(),
+                    username: data.username,
+                    email: data.email,
+                    externalId: data.externalId || data.external_id,
+                },
+                token,
+                isLoading: false,
+                isInitialized: true,
+                error: null,
+            })
+        } catch (error) {
+            console.error('❌ Erreur vérification session:', error)
+            localStorage.removeItem('auth_token')
+            set({
+                user: null,
+                token: null,
+                isLoading: false,
+                isInitialized: true,
+                error: error instanceof Error ? error.message : 'Erreur de session',
+            })
+        }
+    },
+
+    clearError: () => set({ error: null }),
 }))

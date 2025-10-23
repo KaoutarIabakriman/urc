@@ -20,13 +20,13 @@ const MessageList: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // 🔥 Charger les messages depuis PostgreSQL quand la conversation change
+    // Dans MessageList.tsx - corriger le useEffect
     useEffect(() => {
-        if (currentConversation?.target_user_id) {
+        if (currentConversation?.target_user_id && currentConversation.target_user_id !== currentUser?.id) {
+            console.log('🔄 Chargement messages pour:', currentConversation.target_user_id)
             loadMessages(currentConversation.target_user_id)
         }
-    }, [currentConversation, loadMessages])
-
+    }, [currentConversation, loadMessages, currentUser?.id])
     // 🔥 Fonction pour formater le timestamp
     const formatTimestamp = (timestamp: string | Date) => {
         try {
@@ -64,18 +64,19 @@ const MessageList: React.FC = () => {
         )
     }
 
-    // Afficher les messages ou le message de bienvenue si aucun message
-    const displayMessages = messages.length > 0 ? messages : [
+    // 🔥 CORRECTION : Une seule déclaration de isNewConversation
+    const isNewConversation = messages.length === 0
+    const displayMessages = isNewConversation ? [
         {
-            id: '1',
-            content: 'Bienvenue sur UBO Relay Chat ! 👋',
+            id: 'welcome',
+            content: `Commencez la conversation avec ${currentConversation.name} ! 👋`,
             sender_id: 'system',
             sender_username: 'Système',
             timestamp: new Date(),
             conversation_id: currentConversation.id,
             type: 'private'
         }
-    ]
+    ] : messages
 
     return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -95,7 +96,7 @@ const MessageList: React.FC = () => {
                     <Box>
                         <Typography variant="h6">{currentConversation.name}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                            {currentConversation.type === 'private' ? 'Discussion privée' : 'Salon de discussion'}
+                            {isNewConversation ? 'Nouvelle conversation' : 'Discussion privée'}
                         </Typography>
                     </Box>
                 </Box>
@@ -105,7 +106,8 @@ const MessageList: React.FC = () => {
                 <List sx={{ py: 0 }}>
                     {displayMessages.map((message, index) => {
                         const isCurrentUser = message.sender_id === currentUser?.id
-                        const showAvatar = index === 0 || displayMessages[index - 1]?.sender_id !== message.sender_id
+                        const isSystemMessage = message.sender_id === 'system'
+                        const showAvatar = !isSystemMessage && (index === 0 || displayMessages[index - 1]?.sender_id !== message.sender_id)
 
                         return (
                             <React.Fragment key={message.id}>
@@ -117,7 +119,7 @@ const MessageList: React.FC = () => {
                                         px: 0,
                                     }}
                                 >
-                                    {!isCurrentUser && showAvatar && (
+                                    {!isCurrentUser && !isSystemMessage && showAvatar && (
                                         <Avatar
                                             sx={{
                                                 width: 32,
@@ -132,13 +134,13 @@ const MessageList: React.FC = () => {
 
                                     <Box
                                         sx={{
-                                            maxWidth: '70%',
+                                            maxWidth: isSystemMessage ? '90%' : '70%',
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            alignItems: isCurrentUser ? 'flex-end' : 'flex-start',
+                                            alignItems: isSystemMessage ? 'center' : (isCurrentUser ? 'flex-end' : 'flex-start'),
                                         }}
                                     >
-                                        {showAvatar && (
+                                        {!isSystemMessage && showAvatar && (
                                             <Typography
                                                 variant="caption"
                                                 color="text.secondary"
@@ -149,29 +151,40 @@ const MessageList: React.FC = () => {
                                         )}
 
                                         <Paper
-                                            elevation={1}
+                                            elevation={isSystemMessage ? 0 : 1}
                                             sx={{
                                                 p: 1.5,
-                                                bgcolor: isCurrentUser ? 'primary.main' : 'background.paper',
-                                                color: isCurrentUser ? 'primary.contrastText' : 'text.primary',
-                                                borderRadius: 2,
-                                                borderTopLeftRadius: isCurrentUser ? 12 : 4,
-                                                borderTopRightRadius: isCurrentUser ? 4 : 12,
+                                                bgcolor: isSystemMessage ? 'transparent' : (isCurrentUser ? 'primary.main' : 'background.paper'),
+                                                color: isSystemMessage ? 'text.secondary' : (isCurrentUser ? 'primary.contrastText' : 'text.primary'),
+                                                borderRadius: isSystemMessage ? 1 : 2,
+                                                borderTopLeftRadius: isSystemMessage ? 1 : (isCurrentUser ? 12 : 4),
+                                                borderTopRightRadius: isSystemMessage ? 1 : (isCurrentUser ? 4 : 12),
+                                                textAlign: isSystemMessage ? 'center' : 'left',
                                             }}
                                         >
-                                            <Typography variant="body1">{message.content}</Typography>
+                                            <Typography
+                                                variant="body1"
+                                                sx={{
+                                                    fontStyle: isSystemMessage ? 'italic' : 'normal',
+                                                    whiteSpace: 'pre-line'
+                                                }}
+                                            >
+                                                {message.content}
+                                            </Typography>
                                         </Paper>
 
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{ mt: 0.5, mx: 1 }}
-                                        >
-                                            {formatTimestamp(message.timestamp)} {/* 🔥 Utilisation de la fonction corrigée */}
-                                        </Typography>
+                                        {!isSystemMessage && (
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                sx={{ mt: 0.5, mx: 1 }}
+                                            >
+                                                {formatTimestamp(message.timestamp)}
+                                            </Typography>
+                                        )}
                                     </Box>
 
-                                    {isCurrentUser && showAvatar && (
+                                    {isCurrentUser && !isSystemMessage && showAvatar && (
                                         <Avatar
                                             sx={{
                                                 width: 32,
@@ -186,7 +199,7 @@ const MessageList: React.FC = () => {
                                     )}
                                 </ListItem>
 
-                                {index < displayMessages.length - 1 &&
+                                {!isSystemMessage && index < displayMessages.length - 1 &&
                                     displayMessages[index + 1]?.sender_id !== message.sender_id && (
                                         <Divider variant="inset" component="li" sx={{ my: 1 }} />
                                     )}

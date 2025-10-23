@@ -1,4 +1,3 @@
-// pages/Login.tsx
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
@@ -10,18 +9,20 @@ import {
     Box,
     Alert,
     CircularProgress,
+    Avatar,
+    Fade,
 } from '@mui/material'
+import { Lock, School } from '@mui/icons-material'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const Login: React.FC = () => {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
-    const [error, setError] = useState('')
+    const [localError, setLocalError] = useState('')
     const navigate = useNavigate()
     const { login, isLoading } = useAuthStore()
     const usernameRef = useRef<HTMLInputElement>(null)
 
-    // Focus sur le champ username après le rendu (alternative à autoFocus)
     useEffect(() => {
         if (usernameRef.current) {
             usernameRef.current.focus()
@@ -30,52 +31,86 @@ const Login: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setError('')
+        setLocalError('')
 
         try {
-            // Simulation de connexion - À REMPLACER par ton API
-            if (username === 'test' && password === 'testubo') {
-                const token = 'fake-jwt-token'
-                const user = {
-                    id: '1',
-                    username,
-                    email: `${username}@ubo.fr`
-                }
-                login(token, user)
-                navigate('/chat')
-            } else {
-                setError('Identifiants incorrects')
-            }
-        } catch (err) {
-            setError('Erreur de connexion')
+            console.log('🔐 Connexion via store pour:', username)
+
+            // 🔥 UTILISER UNIQUEMENT LE STORE
+            await login(username, password)
+
+            console.log('✅ Connexion réussie, redirection vers /chat')
+            navigate('/chat')
+
+        } catch (error) {
+            console.error('❌ Erreur login:', error)
+            setLocalError(
+                error instanceof Error
+                    ? error.message
+                    : 'Identifiant ou mot de passe incorrect'
+            )
         }
     }
 
-    return (
-        <Container component="main" maxWidth="xs">
-            <Box
-                sx={{
-                    marginTop: 8,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                }}
-            >
-                <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-                    <Typography component="h1" variant="h4" align="center" gutterBottom>
-                        UBO Relay Chat
-                    </Typography>
-                    <Typography variant="subtitle1" align="center" color="textSecondary" sx={{ mb: 3 }}>
-                        Connectez-vous à votre compte
-                    </Typography>
+    // Remplissage automatique pour test
+    const handleDemoLogin = () => {
+        setUsername('lala1')
+        setPassword('testubo')
+    }
 
-                    {error && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
-                            {error}
+    return (
+        <Container
+            component="main"
+            maxWidth="sm"
+            sx={{
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                background: 'linear-gradient(135deg, #0055a0 0%, #003a6e 100%)',
+            }}
+        >
+            <Fade in={true} timeout={800}>
+                <Paper
+                    elevation={8}
+                    sx={{
+                        padding: 6,
+                        width: '100%',
+                        borderRadius: 3,
+                        background: 'white',
+                    }}
+                >
+                    <Box sx={{ textAlign: 'center', mb: 4 }}>
+                        <Avatar
+                            sx={{
+                                bgcolor: 'secondary.main',
+                                width: 60,
+                                height: 60,
+                                margin: '0 auto 16px',
+                            }}
+                        >
+                            <School fontSize="large" />
+                        </Avatar>
+                        <Typography component="h1" variant="h4" gutterBottom>
+                            UBO Relay Chat
+                        </Typography>
+                        <Typography variant="subtitle1" color="text.secondary">
+                            Plateforme de messagerie universitaire
+                        </Typography>
+                    </Box>
+
+                    {localError && (
+                        <Alert
+                            severity="error"
+                            sx={{
+                                mb: 3,
+                                borderRadius: 2,
+                            }}
+                        >
+                            {localError}
                         </Alert>
                     )}
 
-                    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+                    <Box component="form" onSubmit={handleSubmit}>
                         <TextField
                             margin="normal"
                             required
@@ -84,9 +119,11 @@ const Login: React.FC = () => {
                             label="Nom d'utilisateur"
                             name="username"
                             autoComplete="username"
-                            inputRef={usernameRef} // Utilisation de inputRef au lieu de autoFocus
+                            inputRef={usernameRef}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
+                            disabled={isLoading}
+                            sx={{ mb: 2 }}
                         />
                         <TextField
                             margin="normal"
@@ -99,26 +136,81 @@ const Login: React.FC = () => {
                             autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            disabled={isLoading}
+                            sx={{ mb: 3 }}
                         />
                         <Button
                             type="submit"
                             fullWidth
                             variant="contained"
-                            sx={{ mt: 3, mb: 2 }}
+                            size="large"
+                            startIcon={isLoading ? <CircularProgress size={20} /> : <Lock />}
                             disabled={isLoading}
+                            sx={{
+                                py: 1.5,
+                                fontSize: '1.1rem',
+                                mb: 2,
+                            }}
                         >
-                            {isLoading ? <CircularProgress size={24} /> : 'Se connecter'}
+                            {isLoading ? 'Connexion...' : 'Se connecter'}
                         </Button>
-                        <Box textAlign="center">
+
+                        <Button
+                            fullWidth
+                            variant="outlined"
+                            size="medium"
+                            onClick={handleDemoLogin}
+                            disabled={isLoading}
+                            sx={{
+                                mb: 3,
+                            }}
+                        >
+                            Remplir avec le compte de test
+                        </Button>
+
+                        <Box
+                            sx={{
+                                textAlign: 'center',
+                                pt: 2,
+                                borderTop: 1,
+                                borderColor: 'grey.200'
+                            }}
+                        >
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                Première utilisation ?
+                            </Typography>
                             <Link to="/register" style={{ textDecoration: 'none' }}>
-                                <Button variant="text" color="primary">
-                                    Pas de compte ? S'inscrire
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    disabled={isLoading}
+                                    sx={{
+                                        borderRadius: 2,
+                                        px: 3,
+                                    }}
+                                >
+                                    Créer un compte étudiant
                                 </Button>
                             </Link>
                         </Box>
+
+                        <Box
+                            sx={{
+                                mt: 3,
+                                p: 2,
+                                bgcolor: 'grey.50',
+                                borderRadius: 2,
+                                border: 1,
+                                borderColor: 'grey.200'
+                            }}
+                        >
+                            <Typography variant="caption" color="text.secondary">
+                                <strong>Compte de test :</strong> lala1 / testubo
+                            </Typography>
+                        </Box>
                     </Box>
                 </Paper>
-            </Box>
+            </Fade>
         </Container>
     )
 }

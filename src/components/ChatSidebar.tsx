@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     Box,
@@ -9,18 +9,19 @@ import {
     ListItemAvatar,
     Avatar,
     Typography,
-    Chip,
-    Badge,
     TextField,
     InputAdornment,
     CircularProgress,
     Alert,
     Button,
+    Badge,
+    IconButton,
+    Tooltip,
 } from '@mui/material'
 import {
     Search,
-    Person,
     Refresh,
+    Logout,
 } from '@mui/icons-material'
 import { useChatStore, User } from '../stores/useChatStore'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -29,10 +30,10 @@ const ChatSidebar: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('')
     const [localError, setLocalError] = useState<string | null>(null)
     const navigate = useNavigate()
+    const hasLoaded = useRef(false)
 
     const {
         users,
-        conversations,
         currentConversation,
         setCurrentConversation,
         isLoading,
@@ -40,86 +41,108 @@ const ChatSidebar: React.FC = () => {
         fetchUsers,
         createPrivateConversation,
         clearError,
-        loadConversations
     } = useChatStore()
 
-    const { user: currentUser } = useAuthStore()
+    const { user: currentUser, logout, isInitialized } = useAuthStore()
+
+    const loadUsers = useCallback(async () => {
+        try {
+            setLocalError(null)
+            await fetchUsers()
+        } catch (err) {
+            console.error('Erreur lors du chargement:', err)
+            setLocalError('Impossible de charger les utilisateurs')
+        }
+    }, [fetchUsers])
 
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLocalError(null)
-                await loadConversations()
-            } catch (err) {
-                console.error('Erreur lors du chargement:', err)
-                setLocalError('Impossible de charger les conversations')
-            }
+        console.log('🔄 ChatSidebar - État auth:', {
+            currentUser: currentUser?.username,
+            isInitialized,
+            hasLoaded: hasLoaded.current,
+            usersCount: users.length
+        })
+
+        if (isInitialized && currentUser && !hasLoaded.current && users.length === 0 && !isLoading) {
+            console.log('🎯 Déclenchement du chargement initial - Utilisateur prêt')
+            hasLoaded.current = true
+            loadUsers()
         }
+    }, [loadUsers, users.length, isLoading, currentUser, isInitialized])
 
-        loadData()
-    }, [loadConversations])
-
-    const formatLastConnection = (dateString: string) => {
-        try {
-            const date = new Date(dateString)
-            const now = new Date()
-            const diffTime = Math.abs(now.getTime() - date.getTime())
-            const diffMinutes = Math.floor(diffTime / (1000 * 60))
-            const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-            if (diffMinutes < 1) return 'À l\'instant'
-            if (diffMinutes < 60) return `Il y a ${diffMinutes} min`
-            if (diffHours < 24) return `Il y a ${diffHours} h`
-            if (diffDays === 1) return 'Hier'
-            return `Il y a ${diffDays} jours`
-        } catch {
-            return 'Date inconnue'
-        }
+    const isUserOnline = (user: User) => {
+        if (!user.last_connection) return false
+        const lastConnection = new Date(user.last_connection)
+        const now = new Date()
+        return (now.getTime() - lastConnection.getTime()) < 5 * 60 * 1000
     }
 
-    const filteredConversations = conversations.filter(conv =>
-        conv.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filteredUsers = currentUser
+        ? users.filter(user => user.id !== currentUser.id)
+            .filter(user => user.username.toLowerCase().includes(searchTerm.toLowerCase()))
+        : []
+
+    const handleLogout = () => {
+        logout()
+        navigate('/login')
+    }
 
     const handleUserSelect = (user: User) => {
+        if (user.id === currentUser?.id) {
+            console.log('Impossible de chatter avec soi-même')
+            return
+        }
+
         const conversation = createPrivateConversation(user)
         setCurrentConversation(conversation)
-        navigate(`/messages/user/${user.id}`)
+        navigate(`/chat/${user.id}`)
     }
 
     const handleRetry = () => {
         setLocalError(null)
         clearError()
-        loadConversations()
+        hasLoaded.current = false
+        loadUsers()
     }
 
     const displayError = localError || error
 
     return (
         <Box sx={{ width: 320, height: '100vh', bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider' }}>
-            {/* En-tête avec bouton recharger */}
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6" component="h2">
-                        Messages
+                        Utilisateurs ({filteredUsers.length})
                     </Typography>
-                    <Button
-                        startIcon={<Refresh />}
-                        onClick={handleRetry}
-                        disabled={isLoading}
-                        size="small"
-                    >
-                        Actualiser
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Actualiser">
+                            <IconButton
+                                onClick={handleRetry}
+                                disabled={isLoading || !currentUser}
+                                size="small"
+                            >
+                                <Refresh />
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Déconnexion">
+                            <IconButton
+                                onClick={handleLogout}
+                                color="error"
+                                size="small"
+                            >
+                                <Logout />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
                 </Box>
 
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Rechercher une conversation..."
+                    placeholder="Rechercher un utilisateur..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    disabled={!currentUser}
                     InputProps={{
                         startAdornment: (
                             <InputAdornment position="start">
@@ -130,7 +153,18 @@ const ChatSidebar: React.FC = () => {
                 />
             </Box>
 
-            {displayError && (
+            {/* Indicateur de chargement de session */}
+            {!currentUser && (
+                <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <CircularProgress size={24} />
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Chargement de la session...
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Erreurs et contenu principal */}
+            {currentUser && displayError && (
                 <Alert
                     severity="error"
                     sx={{ m: 2 }}
@@ -144,120 +178,89 @@ const ChatSidebar: React.FC = () => {
                 </Alert>
             )}
 
-            {isLoading && (
+            {currentUser && isLoading && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                     <CircularProgress size={24} />
                 </Box>
             )}
 
-            <List sx={{ p: 0, overflow: 'auto', height: 'calc(100vh - 120px)' }}>
-                {filteredConversations.map((conversation) => {
-                    const targetUser = users.find(u => u.id === conversation.target_user_id)
+            {currentUser && (
+                <List sx={{ p: 0, overflow: 'auto', height: 'calc(100vh - 120px)' }}>
+                    {filteredUsers.map((user) => {
+                        const isOnline = isUserOnline(user)
+                        const isSelected = currentConversation?.target_user_id === user.id
 
-                    return (
-                        <ListItem key={conversation.id} disablePadding>
-                            <ListItemButton
-                                selected={currentConversation?.id === conversation.id}
-                                onClick={() => {
-                                    if (targetUser) {
-                                        handleUserSelect(targetUser)
-                                    } else {
-                                        // Créer un utilisateur temporaire si non trouvé
-                                        const tempUser: User = {
-                                            id: conversation.target_user_id || 'unknown',
-                                            username: conversation.name,
-                                            email: '',
-                                            external_id: '',
-                                            last_connection: new Date().toISOString()
-                                        }
-                                        handleUserSelect(tempUser)
-                                    }
-                                }}
-                                sx={{
-                                    '&.Mui-selected': {
-                                        bgcolor: 'primary.light',
-                                        '&:hover': { bgcolor: 'primary.light' },
-                                    },
-                                }}
-                            >
-                                <ListItemAvatar>
-                                    <Badge
-                                        color="success"
-                                        variant="dot"
-                                        invisible={!targetUser?.last_connection ||
-                                            Date.now() - new Date(targetUser.last_connection).getTime() > 5 * 60 * 1000
-                                        }
-                                    >
-                                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                            {conversation.name.charAt(0).toUpperCase()}
-                                        </Avatar>
-                                    </Badge>
-                                </ListItemAvatar>
+                        return (
+                            <ListItem key={user.id} disablePadding>
+                                <ListItemButton
+                                    selected={isSelected}
+                                    onClick={() => handleUserSelect(user)}
+                                    sx={{
+                                        '&.Mui-selected': {
+                                            bgcolor: 'primary.light',
+                                            '&:hover': { bgcolor: 'primary.light' },
+                                        },
+                                    }}
+                                >
+                                    <ListItemAvatar>
+                                        <Badge
+                                            color="success"
+                                            variant="dot"
+                                            invisible={!isOnline}
+                                            anchorOrigin={{
+                                                vertical: 'bottom',
+                                                horizontal: 'right',
+                                            }}
+                                        >
+                                            <Avatar
+                                                sx={{
+                                                    bgcolor: 'primary.main',
+                                                    width: 40,
+                                                    height: 40,
+                                                }}
+                                            >
+                                                {user.username.charAt(0).toUpperCase()}
+                                            </Avatar>
+                                        </Badge>
+                                    </ListItemAvatar>
 
-                                <ListItemText
-                                    primary={
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <ListItemText
+                                        primary={
                                             <Typography
                                                 variant="subtitle1"
-                                                noWrap
-                                                sx={{ fontWeight: 'medium' }}
-                                                component="div" // 🔥 CORRECTION : changer de p à div
+                                                sx={{
+                                                    fontWeight: 'medium',
+                                                    color: isSelected ? 'primary.contrastText' : 'text.primary'
+                                                }}
+                                                component="div"
                                             >
-                                                {conversation.name}
+                                                {user.username}
                                             </Typography>
-                                            {conversation.unread_count > 0 && (
-                                                <Chip
-                                                    label={conversation.unread_count}
-                                                    size="small"
-                                                    color="primary"
-                                                    sx={{ minWidth: 20, height: 20, fontSize: '0.75rem' }}
-                                                />
-                                            )}
-                                        </Box>
-                                    }
-                                    secondary={
-                                        <Box component="div"> {/* 🔥 CORRECTION : explicitement div */}
+                                        }
+                                        secondary={
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
-                                                noWrap
-                                                component="div" // 🔥 CORRECTION : changer de p à div
+                                                color={isSelected ? 'primary.contrastText' : 'text.secondary'}
+                                                component="div"
                                             >
-                                                {conversation.last_message || 'Aucun message'}
+                                                {isOnline ? 'En ligne' : 'Hors ligne'}
                                             </Typography>
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                                component="div" // 🔥 CORRECTION : changer de p à div
-                                            >
-                                                {conversation.last_message_time && formatLastConnection(conversation.last_message_time.toString())}
-                                            </Typography>
-                                        </Box>
-                                    }
-                                    primaryTypographyProps={{ component: 'div' }} // 🔥 CORRECTION supplémentaire
-                                    secondaryTypographyProps={{ component: 'div' }} // 🔥 CORRECTION supplémentaire
-                                />
-                            </ListItemButton>
-                        </ListItem>
-                    )
-                })}
+                                        }
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        )
+                    })}
 
-                {filteredConversations.length === 0 && !isLoading && !displayError && (
-                    <Box sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
-                            {searchTerm ? 'Aucune conversation trouvée' : 'Aucune conversation'}
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            sx={{ mt: 1 }}
-                            onClick={() => fetchUsers()}
-                        >
-                            Charger les utilisateurs
-                        </Button>
-                    </Box>
-                )}
-            </List>
+                    {filteredUsers.length === 0 && !isLoading && !displayError && currentUser && (
+                        <Box sx={{ p: 3, textAlign: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">
+                                {searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun autre utilisateur'}
+                            </Typography>
+                        </Box>
+                    )}
+                </List>
+            )}
         </Box>
     )
 }
