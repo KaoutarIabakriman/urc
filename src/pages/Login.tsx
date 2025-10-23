@@ -155,18 +155,6 @@ const Login: React.FC = () => {
                             {isLoading ? 'Connexion...' : 'Se connecter'}
                         </Button>
 
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            size="medium"
-                            onClick={handleDemoLogin}
-                            disabled={isLoading}
-                            sx={{
-                                mb: 3,
-                            }}
-                        >
-                            Remplir avec le compte de test
-                        </Button>
 
                         <Box
                             sx={{
@@ -204,9 +192,6 @@ const Login: React.FC = () => {
                                 borderColor: 'grey.200'
                             }}
                         >
-                            <Typography variant="caption" color="text.secondary">
-                                <strong>Compte de test :</strong> lala1 / testubo
-                            </Typography>
                         </Box>
                     </Box>
                 </Paper>

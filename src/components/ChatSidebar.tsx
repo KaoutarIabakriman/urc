@@ -55,6 +55,27 @@ const ChatSidebar: React.FC = () => {
         }
     }, [fetchUsers])
 
+    // 🔥 RAFRAÎCHISSEMENT AUTOMATIQUE toutes les 15 secondes
+    useEffect(() => {
+        if (!currentUser || !isInitialized) return
+
+        console.log('🔄 Démarrage rafraîchissement automatique')
+
+        // Rafraîchir immédiatement
+        loadUsers()
+
+        // Puis toutes les 15 secondes
+        const intervalId = setInterval(() => {
+            console.log('🔄 Rafraîchissement automatique des utilisateurs')
+            loadUsers()
+        }, 15000) // 15 secondes
+
+        return () => {
+            console.log('🛑 Arrêt rafraîchissement automatique')
+            clearInterval(intervalId)
+        }
+    }, [currentUser, isInitialized, loadUsers])
+
     useEffect(() => {
         console.log('🔄 ChatSidebar - État auth:', {
             currentUser: currentUser?.username,
@@ -69,13 +90,78 @@ const ChatSidebar: React.FC = () => {
             hasLoaded.current = true
             loadUsers()
         }
-    }, [loadUsers, users.length, isLoading, currentUser, isInitialized])
+    }, [currentUser, isInitialized, users.length, isLoading, loadUsers])
+
+    // 🔥 FONCTION POUR FORMATER LA DERNIÈRE CONNEXION
+    const formatLastConnection = (lastConnection?: string) => {
+        console.log('🕐 Format dernière connexion:', lastConnection, typeof lastConnection)
+
+        if (!lastConnection) return 'Jamais connecté'
+
+        try {
+            const date = new Date(lastConnection)
+            const now = new Date()
+            const diffMs = now.getTime() - date.getTime()
+            const diffMinutes = Math.floor(diffMs / (1000 * 60))
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+            console.log('🕐 Différence:', { diffMinutes, diffHours, diffDays })
+
+            if (diffMinutes < 1) return 'À l\'instant'
+            if (diffMinutes < 60) return `Il y a ${diffMinutes} min`
+            if (diffHours < 24) return `Il y a ${diffHours}h`
+            if (diffDays === 1) return 'Hier'
+            if (diffDays < 7) return `Il y a ${diffDays} jours`
+
+            // Format date complète
+            return date.toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+        } catch (error) {
+            console.error('❌ Erreur formatage date:', error)
+            return 'Hors ligne'
+        }
+    }
 
     const isUserOnline = (user: User) => {
-        if (!user.last_connection) return false
-        const lastConnection = new Date(user.last_connection)
-        const now = new Date()
-        return (now.getTime() - lastConnection.getTime()) < 5 * 60 * 1000
+        // 🔥 DEBUG: Afficher les données reçues
+        console.log('🔍 Vérification statut pour:', user.username, {
+            is_online: (user as any).is_online,
+            type: typeof (user as any).is_online,
+            last_connection: user.last_connection
+        });
+
+        // 🔥 PRIORITÉ: Utiliser is_online de la base de données si disponible
+        const isOnlineField = (user as any).is_online;
+
+        if (typeof isOnlineField === 'boolean') {
+            console.log(isOnlineField ? '🟢' : '⚫', user.username, '- statut DB');
+            return isOnlineField;
+        }
+
+        // 🔥 Si is_online est une string "true"/"false" (parfois le cas avec PostgreSQL)
+        if (isOnlineField === 'true' || isOnlineField === true) {
+            console.log('🟢', user.username, '- statut DB (converti)');
+            return true;
+        }
+
+        // Fallback: Calcul basé sur last_connection (moins de 2 minutes)
+        if (!user.last_connection) {
+            console.log('⚫', user.username, '- pas de last_connection');
+            return false;
+        }
+
+        const lastConnection = new Date(user.last_connection);
+        const now = new Date();
+        const diffMinutes = (now.getTime() - lastConnection.getTime()) / (1000 * 60);
+        const isOnline = diffMinutes < 2;
+
+        console.log(isOnline ? '🟢' : '⚫', user.username, `- fallback (${diffMinutes.toFixed(1)} min)`);
+        return isOnline;
     }
 
     // 🔥 FILTRAGE AMÉLIORÉ avec logs de debug
@@ -276,8 +362,12 @@ const ChatSidebar: React.FC = () => {
                                                 variant="body2"
                                                 color={isSelected ? 'primary.contrastText' : 'text.secondary'}
                                                 component="div"
+                                                sx={{ fontSize: '0.75rem' }}
                                             >
-                                                {isOnline ? 'En ligne' : 'Hors ligne'}
+                                                {isOnline
+                                                    ? 'En ligne'
+                                                    : formatLastConnection(user.last_connection)
+                                                }
                                             </Typography>
                                         }
                                     />
