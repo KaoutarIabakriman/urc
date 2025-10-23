@@ -1,4 +1,3 @@
-// api/room-messages.js
 import { db } from '@vercel/postgres';
 import { checkSession } from '../lib/session';
 
@@ -34,8 +33,6 @@ export default async function handler(request) {
                 });
             }
 
-            // 🔥 PAS BESOIN DE VÉRIFIER LE MEMBERSHIP - ACCÈS AUTOMATIQUE
-            // Insérer le message directement
             const { rows: messageRows } = await client.sql`
                 INSERT INTO room_messages (room_id, user_id, content)
                 VALUES (${roomId}, ${user.id}, ${content})
@@ -76,8 +73,7 @@ export default async function handler(request) {
                 });
             }
 
-            // 🔥 PAS BESOIN DE VÉRIFIER LE MEMBERSHIP - ACCÈS AUTOMATIQUE
-            // Récupérer les messages directement
+
             const { rows: messages } = await client.sql`
                 SELECT 
                     rm.message_id,
@@ -118,7 +114,7 @@ export default async function handler(request) {
         }
 
     } catch (error) {
-        console.error('❌ Erreur messages salon:', error);
+        console.error('Erreur messages salon:', error);
         return new Response(JSON.stringify({
             code: "SERVER_ERROR",
             message: "Erreur serveur: " + error.message

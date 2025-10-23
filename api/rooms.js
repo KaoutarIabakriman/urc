@@ -1,4 +1,3 @@
-// api/rooms.js - VERSION SIMPLIFIÉE
 import { db } from '@vercel/postgres';
 import { checkSession } from '../lib/session';
 
@@ -22,7 +21,6 @@ export default async function handler(request) {
         const client = await db.connect();
 
         if (request.method === 'GET') {
-            // Récupérer TOUS les salons (l'utilisateur a automatiquement accès)
             const { rows: userRooms } = await client.sql`
                 SELECT 
                     r.room_id,
@@ -64,7 +62,7 @@ export default async function handler(request) {
         }
 
     } catch (error) {
-        console.error('❌ Erreur gestion salons:', error);
+        console.error('Erreur gestion salons:', error);
         return new Response(JSON.stringify({
             code: "SERVER_ERROR",
             message: "Erreur serveur: " + error.message

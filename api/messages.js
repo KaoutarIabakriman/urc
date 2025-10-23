@@ -1,4 +1,3 @@
-// api/messages.js - VERSION CORRIGÉE
 import { db } from '@vercel/postgres';
 import { checkSession } from '../lib/session';
 
@@ -35,19 +34,15 @@ export default async function handler(request) {
 
         const client = await db.connect();
 
-        console.log('🔍 Recherche conversation entre:', user.id, 'et', targetUserId);
+        console.log('Recherche conversation entre:', user.id, 'et', targetUserId);
 
-        // 1. Trouver la conversation (dans les deux sens)
         const { rows: conversationRows } = await client.sql`
             SELECT id FROM conversations
             WHERE (user1_id = ${user.id} AND user2_id = ${targetUserId})
                OR (user1_id = ${targetUserId} AND user2_id = ${user.id})
         `;
-
-        // 🔥 MODIFICATION : Retourner un tableau vide si aucune conversation
-        // Au lieu de renvoyer une erreur, on considère que c'est une nouvelle conversation
         if (conversationRows.length === 0) {
-            console.log('💬 Aucune conversation trouvée - Nouvelle conversation');
+            console.log('Aucune conversation trouvée - Nouvelle conversation');
             return new Response(JSON.stringify([]), {
                 status: 200,
                 headers: { 'content-type': 'application/json' },
@@ -55,9 +50,8 @@ export default async function handler(request) {
         }
 
         const conversationId = conversationRows[0].id;
-        console.log('📨 Conversation trouvée:', conversationId);
+        console.log(' Conversation trouvée:', conversationId);
 
-        // 2. Récupérer les messages
         let messageRows;
         try {
             const result = await client.sql`
@@ -75,11 +69,10 @@ export default async function handler(request) {
             `;
             messageRows = result.rows;
         } catch (error) {
-            console.error('❌ Erreur récupération messages:', error);
+            console.error('Erreur récupération messages:', error);
             messageRows = [];
         }
 
-        // 3. Formater les messages
         const messages = messageRows.map(row => ({
             id: row.id.toString(),
             content: row.content,
@@ -90,7 +83,7 @@ export default async function handler(request) {
             type: 'private'
         }));
 
-        console.log(`✅ ${messages.length} messages récupérés depuis PostgreSQL`);
+        console.log(`${messages.length} messages récupérés depuis PostgreSQL`);
 
         return new Response(JSON.stringify(messages), {
             status: 200,
@@ -98,8 +91,7 @@ export default async function handler(request) {
         });
 
     } catch (error) {
-        console.error('❌ Erreur récupération messages PostgreSQL:', error);
-        // 🔥 MODIFICATION : Retourner tableau vide en cas d'erreur
+        console.error(' Erreur récupération messages PostgreSQL:', error);
         return new Response(JSON.stringify([]), {
             status: 200,
             headers: { 'content-type': 'application/json' },

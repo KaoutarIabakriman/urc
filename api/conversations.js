@@ -1,4 +1,3 @@
-// api/conversations.js
 import { db } from '@vercel/postgres';
 import { checkSession } from '../lib/session';
 
@@ -19,11 +18,10 @@ export default async function handler(request) {
             });
         }
 
-        console.log('🔍 Récupération des conversations pour user:', user.id);
+        console.log('Récupération des conversations pour user:', user.id);
 
         const client = await db.connect();
 
-        // Récupérer les conversations avec le dernier message
         const { rows } = await client.sql`
             SELECT
                 c.id,
@@ -48,7 +46,7 @@ export default async function handler(request) {
             ORDER BY c.created_at DESC
         `;
 
-        console.log(`📨 ${rows.length} conversations trouvées en base`);
+        console.log(` ${rows.length} conversations trouvées en base`);
 
         const conversations = rows.map(row => {
             const otherUser = row.user1_id.toString() === user.id ? {
@@ -70,7 +68,7 @@ export default async function handler(request) {
             };
         });
 
-        console.log(`✅ ${conversations.length} conversations formatées`);
+        console.log(`${conversations.length} conversations formatées`);
 
         return new Response(JSON.stringify(conversations), {
             status: 200,
@@ -78,7 +76,7 @@ export default async function handler(request) {
         });
 
     } catch (error) {
-        console.error('❌ Erreur récupération conversations:', error);
+        console.error('Erreur récupération conversations:', error);
         return new Response(JSON.stringify({
             code: "SERVER_ERROR",
             message: "Erreur lors de la récupération des conversations: " + error.message
