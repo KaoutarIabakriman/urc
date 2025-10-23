@@ -20,14 +20,13 @@ const MessageList: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
-    // Dans MessageList.tsx - corriger le useEffect
     useEffect(() => {
         if (currentConversation?.target_user_id && currentConversation.target_user_id !== currentUser?.id) {
             console.log('🔄 Chargement messages pour:', currentConversation.target_user_id)
             loadMessages(currentConversation.target_user_id)
         }
     }, [currentConversation, loadMessages, currentUser?.id])
-    // 🔥 Fonction pour formater le timestamp
+
     const formatTimestamp = (timestamp: string | Date) => {
         try {
             const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
@@ -64,7 +63,6 @@ const MessageList: React.FC = () => {
         )
     }
 
-    // 🔥 CORRECTION : Une seule déclaration de isNewConversation
     const isNewConversation = messages.length === 0
     const displayMessages = isNewConversation ? [
         {
@@ -105,9 +103,13 @@ const MessageList: React.FC = () => {
             <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'grey.50' }}>
                 <List sx={{ py: 0 }}>
                     {displayMessages.map((message, index) => {
+                        // 🔥 CORRECTION : Déterminer correctement l'expéditeur
                         const isCurrentUser = message.sender_id === currentUser?.id
                         const isSystemMessage = message.sender_id === 'system'
-                        const showAvatar = !isSystemMessage && (index === 0 || displayMessages[index - 1]?.sender_id !== message.sender_id)
+
+                        // 🔥 CORRECTION : Afficher l'avatar seulement pour les messages de l'autre utilisateur
+                        const showAvatar = !isSystemMessage && !isCurrentUser &&
+                            (index === 0 || displayMessages[index - 1]?.sender_id !== message.sender_id)
 
                         return (
                             <React.Fragment key={message.id}>
@@ -119,6 +121,7 @@ const MessageList: React.FC = () => {
                                         px: 0,
                                     }}
                                 >
+                                    {/* 🔥 CORRECTION : Avatar du destinataire (gauche) */}
                                     {!isCurrentUser && !isSystemMessage && showAvatar && (
                                         <Avatar
                                             sx={{
@@ -126,9 +129,25 @@ const MessageList: React.FC = () => {
                                                 height: 32,
                                                 mr: 1,
                                                 mt: 0.5,
+                                                bgcolor: 'primary.main',
                                             }}
                                         >
                                             {message.sender_username.charAt(0).toUpperCase()}
+                                        </Avatar>
+                                    )}
+
+                                    {/* 🔥 CORRECTION : Avatar de l'utilisateur courant (droite) */}
+                                    {isCurrentUser && !isSystemMessage && (
+                                        <Avatar
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                ml: 1,
+                                                mt: 0.5,
+                                                bgcolor: 'secondary.main',
+                                            }}
+                                        >
+                                            {currentUser?.username.charAt(0).toUpperCase()}
                                         </Avatar>
                                     )}
 
@@ -140,7 +159,7 @@ const MessageList: React.FC = () => {
                                             alignItems: isSystemMessage ? 'center' : (isCurrentUser ? 'flex-end' : 'flex-start'),
                                         }}
                                     >
-                                        {!isSystemMessage && showAvatar && (
+                                        {!isSystemMessage && !isCurrentUser && showAvatar && (
                                             <Typography
                                                 variant="caption"
                                                 color="text.secondary"
@@ -154,11 +173,22 @@ const MessageList: React.FC = () => {
                                             elevation={isSystemMessage ? 0 : 1}
                                             sx={{
                                                 p: 1.5,
-                                                bgcolor: isSystemMessage ? 'transparent' : (isCurrentUser ? 'primary.main' : 'background.paper'),
-                                                color: isSystemMessage ? 'text.secondary' : (isCurrentUser ? 'primary.contrastText' : 'text.primary'),
-                                                borderRadius: isSystemMessage ? 1 : 2,
-                                                borderTopLeftRadius: isSystemMessage ? 1 : (isCurrentUser ? 12 : 4),
-                                                borderTopRightRadius: isSystemMessage ? 1 : (isCurrentUser ? 4 : 12),
+                                                bgcolor: isSystemMessage
+                                                    ? 'transparent'
+                                                    : isCurrentUser
+                                                        ? 'primary.main'
+                                                        : 'background.paper',
+                                                color: isSystemMessage
+                                                    ? 'text.secondary'
+                                                    : isCurrentUser
+                                                        ? 'primary.contrastText'
+                                                        : 'text.primary',
+                                                borderRadius: 2,
+                                                // 🔥 CORRECTION : Forme des bulles comme WhatsApp
+                                                borderTopLeftRadius: isCurrentUser ? 12 : 4,
+                                                borderTopRightRadius: isCurrentUser ? 4 : 12,
+                                                borderBottomLeftRadius: 12,
+                                                borderBottomRightRadius: 12,
                                                 textAlign: isSystemMessage ? 'center' : 'left',
                                             }}
                                         >
@@ -183,25 +213,12 @@ const MessageList: React.FC = () => {
                                             </Typography>
                                         )}
                                     </Box>
-
-                                    {isCurrentUser && !isSystemMessage && showAvatar && (
-                                        <Avatar
-                                            sx={{
-                                                width: 32,
-                                                height: 32,
-                                                ml: 1,
-                                                mt: 0.5,
-                                                bgcolor: 'secondary.main',
-                                            }}
-                                        >
-                                            {currentUser?.username.charAt(0).toUpperCase()}
-                                        </Avatar>
-                                    )}
                                 </ListItem>
 
+                                {/* 🔥 CORRECTION : Espacement entre groupes de messages */}
                                 {!isSystemMessage && index < displayMessages.length - 1 &&
                                     displayMessages[index + 1]?.sender_id !== message.sender_id && (
-                                        <Divider variant="inset" component="li" sx={{ my: 1 }} />
+                                        <Box sx={{ height: 8 }} />
                                     )}
                             </React.Fragment>
                         )
