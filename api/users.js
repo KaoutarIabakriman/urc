@@ -1,38 +1,16 @@
-// api/users.js
+// api/users.js - VERSION CORRIGÉE
 import { db } from '@vercel/postgres';
-import { Redis } from '@upstash/redis';
+import { checkSession, unauthorizedResponse } from '../lib/session';
 
 export const config = { runtime: 'edge' };
-const redis = Redis.fromEnv();
-
-// 🔹 Vérifier la session via Redis
-async function checkSession(request) {
-    const authHeader = request.headers.get('Authorization') || '';
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) return null;
-
-    try {
-        const sessionData = await redis.get(`session:${token}`);
-        return sessionData ? JSON.parse(sessionData) : null;
-    } catch (err) {
-        console.error('❌ Erreur Redis checkSession:', err);
-        return null;
-    }
-}
-
-// 🔹 Réponse non autorisée
-function unauthorizedResponse() {
-    return new Response(JSON.stringify({ error: 'Session invalide ou expirée' }), {
-        status: 401,
-        headers: { 'content-type': 'application/json' }
-    });
-}
 
 export default async function handler(request) {
     console.log('🔐 Début /api/users');
 
     try {
+        // 🔥 UTILISER LA FONCTION IMPORTÉE (pas de JSON.parse ici)
         const user = await checkSession(request);
+
         if (!user) {
             console.log('❌ Session invalide');
             return unauthorizedResponse();

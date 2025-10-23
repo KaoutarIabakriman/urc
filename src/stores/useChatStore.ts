@@ -78,7 +78,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
             console.log('📡 Récupération utilisateurs...')
             console.log('🔑 Token disponible:', token ? `${token.substring(0, 30)}...` : 'AUCUN TOKEN')
 
-            // 🔥 AJOUT DU TOKEN DANS LES HEADERS
             const headers = getAuthHeaders()
             console.log('📋 Headers envoyés:', headers)
 
@@ -117,8 +116,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         try {
             console.log('📨 Chargement messages pour:', targetUserId)
 
-            // 🔥 AJOUT DU TOKEN DANS LES HEADERS
-            const response = await fetch(`/api/messages?userId=${targetUserId}`, {
+            // 🔥 CORRECTION: Utiliser targetUserId au lieu de userId
+            const response = await fetch(`/api/messages?targetUserId=${targetUserId}`, {
                 method: 'GET',
                 headers: getAuthHeaders(),
             })
@@ -130,7 +129,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
 
             if (!response.ok) {
-                throw new Error(`Erreur ${response.status}`)
+                const errorData = await response.json()
+                console.error('❌ Erreur API messages:', errorData)
+                throw new Error(`Erreur ${response.status}: ${errorData.message || 'Impossible de charger les messages'}`)
             }
 
             const data = await response.json()
@@ -152,13 +153,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         try {
             console.log('📤 Envoi message à:', targetUserId)
 
-            // 🔥 AJOUT DU TOKEN DANS LES HEADERS
-            const response = await fetch('/api/messages', {
+            // 🔥 CORRECTIONS:
+            // 1. Utiliser /api/message (singulier)
+            // 2. Utiliser targetUserId au lieu de target_user_id
+            const response = await fetch('/api/message', {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     content,
-                    target_user_id: targetUserId,
+                    targetUserId: targetUserId,
                     type: 'private'
                 }),
             })
@@ -170,10 +173,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
 
             if (!response.ok) {
-                throw new Error(`Erreur ${response.status}`)
+                const errorData = await response.json()
+                console.error('❌ Erreur API envoi:', errorData)
+                throw new Error(`Erreur ${response.status}: ${errorData.message || "Impossible d'envoyer le message"}`)
             }
 
-            const newMessage = await response.json()
+            const responseData = await response.json()
+            console.log('✅ Réponse complète:', responseData)
+
+            // 🔥 CORRECTION: Extraire le message de la réponse
+            const newMessage = responseData.message || responseData
             console.log('✅ Message envoyé:', newMessage)
 
             // Ajouter le message à la liste
