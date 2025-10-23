@@ -97,8 +97,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
 
             const data = await response.json()
-            console.log('✅ Utilisateurs récupérés:', data.length)
+            console.log('✅ Utilisateurs récupérés (total):', data.length)
 
+            // 🔥 NOUVEAU: Stocker TOUS les utilisateurs (pour la recherche par ID)
             set({ users: data, isLoading: false })
         } catch (error) {
             console.error('❌ Erreur récupération utilisateurs:', error)

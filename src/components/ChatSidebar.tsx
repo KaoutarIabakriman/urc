@@ -58,6 +58,7 @@ const ChatSidebar: React.FC = () => {
     useEffect(() => {
         console.log('🔄 ChatSidebar - État auth:', {
             currentUser: currentUser?.username,
+            currentUserId: currentUser?.id,
             isInitialized,
             hasLoaded: hasLoaded.current,
             usersCount: users.length
@@ -77,10 +78,42 @@ const ChatSidebar: React.FC = () => {
         return (now.getTime() - lastConnection.getTime()) < 5 * 60 * 1000
     }
 
-    const filteredUsers = currentUser
-        ? users.filter(user => user.id !== currentUser.id)
-            .filter(user => user.username.toLowerCase().includes(searchTerm.toLowerCase()))
-        : []
+    // 🔥 FILTRAGE AMÉLIORÉ avec logs de debug
+    const filteredUsers = React.useMemo(() => {
+        if (!currentUser) {
+            console.log('⚠️ Pas d\'utilisateur connecté pour filtrer')
+            return []
+        }
+
+        console.log('🔍 Filtrage utilisateurs:', {
+            total: users.length,
+            currentUserId: currentUser.id,
+            currentUserIdType: typeof currentUser.id
+        })
+
+        // Filtrer l'utilisateur connecté ET appliquer la recherche
+        const filtered = users.filter(user => {
+            // 🔥 CONVERSION EN STRING POUR COMPARAISON SÛRE
+            const userId = String(user.id)
+            const currentId = String(currentUser.id)
+
+            // Exclure l'utilisateur connecté
+            if (userId === currentId) {
+                console.log('🚫 Exclusion utilisateur connecté:', user.username)
+                return false
+            }
+
+            // Appliquer le filtre de recherche
+            if (searchTerm) {
+                return user.username.toLowerCase().includes(searchTerm.toLowerCase())
+            }
+
+            return true
+        })
+
+        console.log('✅ Utilisateurs filtrés:', filtered.length)
+        return filtered
+    }, [users, currentUser, searchTerm])
 
     const handleLogout = () => {
         logout()
@@ -88,8 +121,9 @@ const ChatSidebar: React.FC = () => {
     }
 
     const handleUserSelect = (user: User) => {
-        if (user.id === currentUser?.id) {
-            console.log('Impossible de chatter avec soi-même')
+        // Double vérification (normalement impossible grâce au filtrage)
+        if (String(user.id) === String(currentUser?.id)) {
+            console.log('🚫 Impossible de chatter avec soi-même')
             return
         }
 
