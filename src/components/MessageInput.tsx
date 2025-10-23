@@ -15,15 +15,28 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 const MessageInput: React.FC = () => {
     const [message, setMessage] = useState('')
-    const { currentConversation, isSending, sendMessage } = useChatStore() // Nouvelle action
+    const {
+        currentConversation,
+        currentRoom,           // 🔥 AJOUTÉ
+        isSending,
+        sendMessage,
+        sendRoomMessage        // 🔥 AJOUTÉ
+    } = useChatStore()
     const { user: currentUser } = useAuthStore()
 
     const handleSendMessage = async () => {
-        if (!message.trim() || !currentConversation?.target_user_id || !currentUser) return
+        if (!message.trim() || !currentUser) return
 
         try {
-            // 🔥 Utiliser la nouvelle action PostgreSQL
-            await sendMessage(message, currentConversation.target_user_id)
+            // 🔥 ENVOYER SELON LE CONTEXTE
+            if (currentRoom) {
+                // Envoi dans un salon
+                await sendRoomMessage(message, currentRoom.id)
+            } else if (currentConversation?.target_user_id) {
+                // Envoi en conversation privée
+                await sendMessage(message, currentConversation.target_user_id)
+            }
+
             setMessage('')
         } catch (error) {
             console.error('Erreur envoi message:', error)
@@ -37,7 +50,8 @@ const MessageInput: React.FC = () => {
         }
     }
 
-    if (!currentConversation) {
+    // 🔥 Afficher seulement si conversation ou room sélectionnée
+    if (!currentConversation && !currentRoom) {
         return null
     }
 
@@ -64,7 +78,11 @@ const MessageInput: React.FC = () => {
                     fullWidth
                     multiline
                     maxRows={4}
-                    placeholder={`Envoyer un message à ${currentConversation.name}...`}
+                    placeholder={
+                        currentRoom
+                            ? `Envoyer un message dans #${currentRoom.name}...`
+                            : `Envoyer un message à ${currentConversation?.name}...`
+                    }
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}

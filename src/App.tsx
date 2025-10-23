@@ -19,32 +19,15 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route
-                    path="/login"
-                    element={
-                        <PublicRoute>
-                            <Login />
-                        </PublicRoute>
-                    }
-                />
-                <Route
-                    path="/register"
-                    element={
-                        <PublicRoute>
-                            <Register />
-                        </PublicRoute>
-                    }
-                />
-                <Route
-                    path="/chat/:userId?"
-                    element={
-                        <ProtectedRoute>
-                            <Chat />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route path="/" element={<Navigate to="/chat" />} />
-                <Route path="/messages/user/:userId" element={<Navigate to="/chat/:userId" replace />} />
+                <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+                {/* 🔥 CORRECTION : Route unique qui capture tout */}
+                <Route path="/chat/*" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+
+                <Route path="/" element={<Navigate to="/chat" replace />} />
+
+                <Route path="*" element={<Navigate to="/chat" replace />} />
             </Routes>
         </BrowserRouter>
     )

@@ -6,26 +6,37 @@ import {
     Paper,
     List,
     ListItem,
-    Divider,
 } from '@mui/material'
 import { useChatStore } from '../stores/useChatStore'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const MessageList: React.FC = () => {
-    const { messages, currentConversation, loadMessages } = useChatStore()
+    const {
+        messages,
+        roomMessages,           // 🔥 AJOUTÉ
+        currentConversation,
+        currentRoom,            // 🔥 AJOUTÉ
+        loadMessages
+    } = useChatStore()
     const { user: currentUser } = useAuthStore()
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messages])
+    }, [messages, roomMessages])  // 🔥 AJOUTÉ roomMessages
 
     useEffect(() => {
-        if (currentConversation?.target_user_id && currentConversation.target_user_id !== currentUser?.id) {
+        // 🔥 Ne charger que pour les conversations privées
+        if (currentRoom) {
+            return  // Les messages des rooms sont chargés dans ChatContainer
+        }
+
+        if (currentConversation?.target_user_id &&
+            currentConversation.target_user_id !== currentUser?.id) {
             console.log('🔄 Chargement messages pour:', currentConversation.target_user_id)
             loadMessages(currentConversation.target_user_id)
         }
-    }, [currentConversation, loadMessages, currentUser?.id])
+    }, [currentConversation, currentRoom, loadMessages, currentUser?.id])
 
     const formatTimestamp = (timestamp: string | Date) => {
         try {
@@ -40,7 +51,8 @@ const MessageList: React.FC = () => {
         }
     }
 
-    if (!currentConversation) {
+    // 🔥 AFFICHAGE SELON LE CONTEXTE
+    if (!currentConversation && !currentRoom) {
         return (
             <Box
                 sx={{
@@ -57,24 +69,27 @@ const MessageList: React.FC = () => {
                     UBO Relay Chat
                 </Typography>
                 <Typography variant="body1" color="text.secondary" align="center">
-                    Sélectionnez une conversation pour commencer à discuter
+                    Sélectionnez une conversation ou un salon pour commencer à discuter
                 </Typography>
             </Box>
         )
     }
 
-    const isNewConversation = messages.length === 0
-    const displayMessages = isNewConversation ? [
-        {
-            id: 'welcome',
-            content: `Commencez la conversation avec ${currentConversation.name} ! 👋`,
-            sender_id: 'system',
-            sender_username: 'Système',
-            timestamp: new Date(),
-            conversation_id: currentConversation.id,
-            type: 'private'
-        }
-    ] : messages
+    // 🔥 CHOISIR LES BONS MESSAGES
+    const isNewConversation = !currentRoom && messages.length === 0
+    const displayMessages = currentRoom
+        ? roomMessages  // Messages du salon
+        : isNewConversation
+            ? [{  // Message de bienvenue pour nouvelle conversation
+                id: 'welcome',
+                content: `Commencez la conversation avec ${currentConversation?.name} ! 👋`,
+                sender_id: 'system',
+                sender_username: 'Système',
+                timestamp: new Date(),
+                conversation_id: currentConversation?.id || '',
+                type: 'private' as const
+            }]
+            : messages  // Messages de la conversation privée
 
     return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -88,13 +103,20 @@ const MessageList: React.FC = () => {
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar sx={{ bgcolor: 'primary.main' }}>
-                        {currentConversation.name.charAt(0).toUpperCase()}
+                    <Avatar sx={{ bgcolor: currentRoom ? 'secondary.main' : 'primary.main' }}>
+                        {(currentRoom?.name || currentConversation?.name || '?').charAt(0).toUpperCase()}
                     </Avatar>
                     <Box>
-                        <Typography variant="h6">{currentConversation.name}</Typography>
+                        <Typography variant="h6">
+                            {currentRoom?.name || currentConversation?.name}
+                        </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            {isNewConversation ? 'Nouvelle conversation' : 'Discussion privée'}
+                            {currentRoom
+                                ? `Salon public • ${currentRoom.member_count} membre(s)`
+                                : isNewConversation
+                                    ? 'Nouvelle conversation'
+                                    : 'Discussion privée'
+                            }
                         </Typography>
                     </Box>
                 </Box>
@@ -103,11 +125,9 @@ const MessageList: React.FC = () => {
             <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'grey.50' }}>
                 <List sx={{ py: 0 }}>
                     {displayMessages.map((message, index) => {
-                        // 🔥 CORRECTION : Déterminer correctement l'expéditeur
                         const isCurrentUser = message.sender_id === currentUser?.id
                         const isSystemMessage = message.sender_id === 'system'
 
-                        // 🔥 CORRECTION : Afficher l'avatar seulement pour les messages de l'autre utilisateur
                         const showAvatar = !isSystemMessage && !isCurrentUser &&
                             (index === 0 || displayMessages[index - 1]?.sender_id !== message.sender_id)
 
@@ -121,7 +141,7 @@ const MessageList: React.FC = () => {
                                         px: 0,
                                     }}
                                 >
-                                    {/* 🔥 CORRECTION : Avatar du destinataire (gauche) */}
+                                    {/* Avatar du destinataire (gauche) */}
                                     {!isCurrentUser && !isSystemMessage && showAvatar && (
                                         <Avatar
                                             sx={{
@@ -136,7 +156,7 @@ const MessageList: React.FC = () => {
                                         </Avatar>
                                     )}
 
-                                    {/* 🔥 CORRECTION : Avatar de l'utilisateur courant (droite) */}
+                                    {/* Avatar de l'utilisateur courant (droite) */}
                                     {isCurrentUser && !isSystemMessage && (
                                         <Avatar
                                             sx={{
@@ -184,7 +204,6 @@ const MessageList: React.FC = () => {
                                                         ? 'primary.contrastText'
                                                         : 'text.primary',
                                                 borderRadius: 2,
-                                                // 🔥 CORRECTION : Forme des bulles comme WhatsApp
                                                 borderTopLeftRadius: isCurrentUser ? 12 : 4,
                                                 borderTopRightRadius: isCurrentUser ? 4 : 12,
                                                 borderBottomLeftRadius: 12,
@@ -215,7 +234,7 @@ const MessageList: React.FC = () => {
                                     </Box>
                                 </ListItem>
 
-                                {/* 🔥 CORRECTION : Espacement entre groupes de messages */}
+                                {/* Espacement entre groupes de messages */}
                                 {!isSystemMessage && index < displayMessages.length - 1 &&
                                     displayMessages[index + 1]?.sender_id !== message.sender_id && (
                                         <Box sx={{ height: 8 }} />

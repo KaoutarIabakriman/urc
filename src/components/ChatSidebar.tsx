@@ -17,28 +17,37 @@ import {
     Badge,
     IconButton,
     Tooltip,
+    Tabs,
+    Tab,
 } from '@mui/material'
 import {
     Search,
     Refresh,
     Logout,
+    Group,
+    Person,
 } from '@mui/icons-material'
-import { useChatStore, User } from '../stores/useChatStore'
+import { useChatStore, User, Room } from '../stores/useChatStore'
 import { useAuthStore } from '../stores/useAuthStore'
 
 const ChatSidebar: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('')
     const [localError, setLocalError] = useState<string | null>(null)
+    const [activeTab, setActiveTab] = useState(0) // 0: Utilisateurs, 1: Salons
     const navigate = useNavigate()
     const hasLoaded = useRef(false)
 
     const {
         users,
+        rooms,
         currentConversation,
+        currentRoom,
         setCurrentConversation,
+        setCurrentRoom,
         isLoading,
         error,
         fetchUsers,
+        fetchRooms,
         createPrivateConversation,
         clearError,
     } = useChatStore()
@@ -55,47 +64,42 @@ const ChatSidebar: React.FC = () => {
         }
     }, [fetchUsers])
 
-    // 🔥 RAFRAÎCHISSEMENT AUTOMATIQUE toutes les 15 secondes
+    const loadRooms = useCallback(async () => {
+        try {
+            setLocalError(null)
+            await fetchRooms()
+        } catch (err) {
+            console.error('Erreur lors du chargement des salons:', err)
+            setLocalError('Impossible de charger les salons')
+        }
+    }, [fetchRooms])
+
+    // Rafraîchissement automatique
     useEffect(() => {
         if (!currentUser || !isInitialized) return
 
-        console.log('🔄 Démarrage rafraîchissement automatique')
-
-        // Rafraîchir immédiatement
         loadUsers()
+        loadRooms()
 
-        // Puis toutes les 15 secondes
         const intervalId = setInterval(() => {
-            console.log('🔄 Rafraîchissement automatique des utilisateurs')
             loadUsers()
-        }, 15000) // 15 secondes
+            loadRooms()
+        }, 15000)
 
         return () => {
-            console.log('🛑 Arrêt rafraîchissement automatique')
             clearInterval(intervalId)
         }
-    }, [currentUser, isInitialized, loadUsers])
+    }, [currentUser, isInitialized, loadUsers, loadRooms])
 
     useEffect(() => {
-        console.log('🔄 ChatSidebar - État auth:', {
-            currentUser: currentUser?.username,
-            currentUserId: currentUser?.id,
-            isInitialized,
-            hasLoaded: hasLoaded.current,
-            usersCount: users.length
-        })
-
         if (isInitialized && currentUser && !hasLoaded.current && users.length === 0 && !isLoading) {
-            console.log('🎯 Déclenchement du chargement initial - Utilisateur prêt')
             hasLoaded.current = true
             loadUsers()
+            loadRooms()
         }
-    }, [currentUser, isInitialized, users.length, isLoading, loadUsers])
+    }, [currentUser, isInitialized, users.length, isLoading, loadUsers, loadRooms])
 
-    // 🔥 FONCTION POUR FORMATER LA DERNIÈRE CONNEXION
     const formatLastConnection = (lastConnection?: string) => {
-        console.log('🕐 Format dernière connexion:', lastConnection, typeof lastConnection)
-
         if (!lastConnection) return 'Jamais connecté'
 
         try {
@@ -106,15 +110,12 @@ const ChatSidebar: React.FC = () => {
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
             const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-            console.log('🕐 Différence:', { diffMinutes, diffHours, diffDays })
-
             if (diffMinutes < 1) return 'À l\'instant'
             if (diffMinutes < 60) return `Il y a ${diffMinutes} min`
             if (diffHours < 24) return `Il y a ${diffHours}h`
             if (diffDays === 1) return 'Hier'
             if (diffDays < 7) return `Il y a ${diffDays} jours`
 
-            // Format date complète
             return date.toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'short',
@@ -122,74 +123,42 @@ const ChatSidebar: React.FC = () => {
                 minute: '2-digit'
             })
         } catch (error) {
-            console.error('❌ Erreur formatage date:', error)
             return 'Hors ligne'
         }
     }
 
     const isUserOnline = (user: User) => {
-        // 🔥 DEBUG: Afficher les données reçues
-        console.log('🔍 Vérification statut pour:', user.username, {
-            is_online: (user as any).is_online,
-            type: typeof (user as any).is_online,
-            last_connection: user.last_connection
-        });
-
-        // 🔥 PRIORITÉ: Utiliser is_online de la base de données si disponible
         const isOnlineField = (user as any).is_online;
 
         if (typeof isOnlineField === 'boolean') {
-            console.log(isOnlineField ? '🟢' : '⚫', user.username, '- statut DB');
             return isOnlineField;
         }
 
-        // 🔥 Si is_online est une string "true"/"false" (parfois le cas avec PostgreSQL)
         if (isOnlineField === 'true' || isOnlineField === true) {
-            console.log('🟢', user.username, '- statut DB (converti)');
             return true;
         }
 
-        // Fallback: Calcul basé sur last_connection (moins de 2 minutes)
         if (!user.last_connection) {
-            console.log('⚫', user.username, '- pas de last_connection');
             return false;
         }
 
         const lastConnection = new Date(user.last_connection);
         const now = new Date();
         const diffMinutes = (now.getTime() - lastConnection.getTime()) / (1000 * 60);
-        const isOnline = diffMinutes < 2;
-
-        console.log(isOnline ? '🟢' : '⚫', user.username, `- fallback (${diffMinutes.toFixed(1)} min)`);
-        return isOnline;
+        return diffMinutes < 2;
     }
 
-    // 🔥 FILTRAGE AMÉLIORÉ avec logs de debug
     const filteredUsers = React.useMemo(() => {
-        if (!currentUser) {
-            console.log('⚠️ Pas d\'utilisateur connecté pour filtrer')
-            return []
-        }
+        if (!currentUser) return []
 
-        console.log('🔍 Filtrage utilisateurs:', {
-            total: users.length,
-            currentUserId: currentUser.id,
-            currentUserIdType: typeof currentUser.id
-        })
-
-        // Filtrer l'utilisateur connecté ET appliquer la recherche
         const filtered = users.filter(user => {
-            // 🔥 CONVERSION EN STRING POUR COMPARAISON SÛRE
             const userId = String(user.id)
             const currentId = String(currentUser.id)
 
-            // Exclure l'utilisateur connecté
             if (userId === currentId) {
-                console.log('🚫 Exclusion utilisateur connecté:', user.username)
                 return false
             }
 
-            // Appliquer le filtre de recherche
             if (searchTerm) {
                 return user.username.toLowerCase().includes(searchTerm.toLowerCase())
             }
@@ -197,17 +166,31 @@ const ChatSidebar: React.FC = () => {
             return true
         })
 
-        console.log('✅ Utilisateurs filtrés:', filtered.length)
         return filtered
     }, [users, currentUser, searchTerm])
+
+    const filteredRooms = React.useMemo(() => {
+        if (!currentUser) return []
+
+        const filtered = rooms.filter(room => {
+            if (searchTerm) {
+                return room.name.toLowerCase().includes(searchTerm.toLowerCase())
+            }
+            return true
+        })
+
+        return filtered
+    }, [rooms, currentUser, searchTerm])
 
     const handleLogout = () => {
         logout()
         navigate('/login')
     }
 
+// Dans handleUserSelect
     const handleUserSelect = (user: User) => {
-        // Double vérification (normalement impossible grâce au filtrage)
+        console.log('👤 Sélection utilisateur:', user.username, 'ID:', user.id)
+
         if (String(user.id) === String(currentUser?.id)) {
             console.log('🚫 Impossible de chatter avec soi-même')
             return
@@ -215,7 +198,23 @@ const ChatSidebar: React.FC = () => {
 
         const conversation = createPrivateConversation(user)
         setCurrentConversation(conversation)
-        navigate(`/chat/${user.id}`)
+        setCurrentRoom(null)
+
+        // 🔥 URL absolue
+        navigate(`/chat/user/${user.id}`)
+        console.log('📍 Navigation vers:', `/chat/user/${user.id}`)
+    }
+
+// Dans handleRoomSelect
+    const handleRoomSelect = (room: Room) => {
+        console.log('🏠 Sélection salon:', room.name, 'ID:', room.id)
+
+        setCurrentRoom(room)
+        setCurrentConversation(null)
+
+        // 🔥 URL absolue
+        navigate(`/chat/room/${room.id}`)
+        console.log('📍 Navigation vers:', `/chat/room/${room.id}`)
     }
 
     const handleRetry = () => {
@@ -223,6 +222,7 @@ const ChatSidebar: React.FC = () => {
         clearError()
         hasLoaded.current = false
         loadUsers()
+        loadRooms()
     }
 
     const displayError = localError || error
@@ -232,7 +232,7 @@ const ChatSidebar: React.FC = () => {
             <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6" component="h2">
-                        Utilisateurs ({filteredUsers.length})
+                        {activeTab === 0 ? `Utilisateurs (${filteredUsers.length})` : `Salons (${filteredRooms.length})`}
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Tooltip title="Actualiser">
@@ -256,10 +256,28 @@ const ChatSidebar: React.FC = () => {
                     </Box>
                 </Box>
 
+                <Tabs
+                    value={activeTab}
+                    onChange={(_, newValue) => setActiveTab(newValue)}
+                    sx={{ mb: 2 }}
+                    variant="fullWidth"
+                >
+                    <Tab
+                        icon={<Person />}
+                        label="Utilisateurs"
+                        sx={{ minHeight: 48 }}
+                    />
+                    <Tab
+                        icon={<Group />}
+                        label="Salons"
+                        sx={{ minHeight: 48 }}
+                    />
+                </Tabs>
+
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Rechercher un utilisateur..."
+                    placeholder={activeTab === 0 ? "Rechercher un utilisateur..." : "Rechercher un salon..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     disabled={!currentUser}
@@ -273,7 +291,6 @@ const ChatSidebar: React.FC = () => {
                 />
             </Box>
 
-            {/* Indicateur de chargement de session */}
             {!currentUser && (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                     <CircularProgress size={24} />
@@ -283,7 +300,6 @@ const ChatSidebar: React.FC = () => {
                 </Box>
             )}
 
-            {/* Erreurs et contenu principal */}
             {currentUser && displayError && (
                 <Alert
                     severity="error"
@@ -305,81 +321,136 @@ const ChatSidebar: React.FC = () => {
             )}
 
             {currentUser && (
-                <List sx={{ p: 0, overflow: 'auto', height: 'calc(100vh - 120px)' }}>
-                    {filteredUsers.map((user) => {
-                        const isOnline = isUserOnline(user)
-                        const isSelected = currentConversation?.target_user_id === user.id
+                <List sx={{ p: 0, overflow: 'auto', height: 'calc(100vh - 180px)' }}>
+                    {activeTab === 0 ? (
+                        // Liste des utilisateurs
+                        filteredUsers.map((user) => {
+                            const isOnline = isUserOnline(user)
+                            const isSelected = currentConversation?.target_user_id === user.id
 
-                        return (
-                            <ListItem key={user.id} disablePadding>
-                                <ListItemButton
-                                    selected={isSelected}
-                                    onClick={() => handleUserSelect(user)}
-                                    sx={{
-                                        '&.Mui-selected': {
-                                            bgcolor: 'primary.light',
-                                            '&:hover': { bgcolor: 'primary.light' },
-                                        },
-                                    }}
-                                >
-                                    <ListItemAvatar>
-                                        <Badge
-                                            color="success"
-                                            variant="dot"
-                                            invisible={!isOnline}
-                                            anchorOrigin={{
-                                                vertical: 'bottom',
-                                                horizontal: 'right',
-                                            }}
-                                        >
+                            return (
+                                <ListItem key={user.id} disablePadding>
+                                    <ListItemButton
+                                        selected={isSelected}
+                                        onClick={() => handleUserSelect(user)}
+                                        sx={{
+                                            '&.Mui-selected': {
+                                                bgcolor: 'primary.light',
+                                                '&:hover': { bgcolor: 'primary.light' },
+                                            },
+                                        }}
+                                    >
+                                        <ListItemAvatar>
+                                            <Badge
+                                                color="success"
+                                                variant="dot"
+                                                invisible={!isOnline}
+                                                anchorOrigin={{
+                                                    vertical: 'bottom',
+                                                    horizontal: 'right',
+                                                }}
+                                            >
+                                                <Avatar
+                                                    sx={{
+                                                        bgcolor: 'primary.main',
+                                                        width: 40,
+                                                        height: 40,
+                                                    }}
+                                                >
+                                                    {user.username.charAt(0).toUpperCase()}
+                                                </Avatar>
+                                            </Badge>
+                                        </ListItemAvatar>
+
+                                        <ListItemText
+                                            primary={
+                                                <Typography variant="subtitle2" noWrap>
+                                                    {user.username}
+                                                </Typography>
+                                            }
+                                            secondary={
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {isOnline ? 'En ligne' : formatLastConnection(user.last_connection)}
+                                                </Typography>
+                                            }
+                                        />
+                                    </ListItemButton>
+                                </ListItem>
+                            )
+                        })
+                    ) : (
+                        // Liste des salons (accès automatique)
+                        filteredRooms.map((room) => {
+                            const isSelected = currentRoom?.id === room.id
+
+                            return (
+                                <ListItem key={room.id} disablePadding>
+                                    <ListItemButton
+                                        selected={isSelected}
+                                        onClick={() => handleRoomSelect(room)}
+                                        sx={{
+                                            '&.Mui-selected': {
+                                                bgcolor: 'secondary.light',
+                                                '&:hover': { bgcolor: 'secondary.light' },
+                                            },
+                                        }}
+                                    >
+                                        <ListItemAvatar>
                                             <Avatar
                                                 sx={{
-                                                    bgcolor: 'primary.main',
+                                                    bgcolor: 'secondary.main',
                                                     width: 40,
                                                     height: 40,
                                                 }}
                                             >
-                                                {user.username.charAt(0).toUpperCase()}
+                                                <Group />
                                             </Avatar>
-                                        </Badge>
-                                    </ListItemAvatar>
+                                        </ListItemAvatar>
 
-                                    <ListItemText
-                                        primary={
-                                            <Typography
-                                                variant="subtitle1"
-                                                sx={{
-                                                    fontWeight: 'medium',
-                                                    color: isSelected ? 'primary.contrastText' : 'text.primary'
-                                                }}
-                                                component="div"
-                                            >
-                                                {user.username}
-                                            </Typography>
-                                        }
-                                        secondary={
-                                            <Typography
-                                                variant="body2"
-                                                color={isSelected ? 'primary.contrastText' : 'text.secondary'}
-                                                component="div"
-                                                sx={{ fontSize: '0.75rem' }}
-                                            >
-                                                {isOnline
-                                                    ? 'En ligne'
-                                                    : formatLastConnection(user.last_connection)
-                                                }
-                                            </Typography>
-                                        }
-                                    />
-                                </ListItemButton>
-                            </ListItem>
-                        )
-                    })}
+                                        <ListItemText
+                                            primary={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Typography variant="subtitle2" noWrap>
+                                                        {room.name}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            bgcolor: 'success.light',
+                                                            color: 'success.contrastText',
+                                                            px: 0.5,
+                                                            borderRadius: 0.5,
+                                                            fontSize: '0.6rem'
+                                                        }}
+                                                    >
+                                                        Public
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            secondary={
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {room.member_count} membre(s) • Accès automatique
+                                                </Typography>
+                                            }
+                                        />
+                                    </ListItemButton>
+                                </ListItem>
+                            )
+                        })
+                    )}
 
-                    {filteredUsers.length === 0 && !isLoading && !displayError && currentUser && (
+                    {activeTab === 0 && filteredUsers.length === 0 && !isLoading && !displayError && currentUser && (
                         <Box sx={{ p: 3, textAlign: 'center' }}>
                             <Typography variant="body2" color="text.secondary">
                                 {searchTerm ? 'Aucun utilisateur trouvé' : 'Aucun autre utilisateur'}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {activeTab === 1 && filteredRooms.length === 0 && !isLoading && !displayError && currentUser && (
+                        <Box sx={{ p: 3, textAlign: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">
+                                {searchTerm ? 'Aucun salon trouvé' : 'Aucun salon disponible'}
                             </Typography>
                         </Box>
                     )}
