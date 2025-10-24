@@ -30,9 +30,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: true, error: null })
 
         try {
-            console.log('🔐 Tentative de connexion:', username)
+            console.log('Tentative de connexion:', username)
 
-            // 🔥 CORRECTION : Utiliser /api/login au lieu de /api/auth/login
+
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 body: JSON.stringify({ username, password }),
             })
 
-            console.log('📥 Réponse login store - Status:', response.status)
+            console.log('Réponse login store - Status:', response.status)
 
             if (!response.ok) {
                 const errorData = await response.json()
@@ -49,16 +49,16 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
 
             const data = await response.json()
-            console.log('✅ Données reçues dans store:', data)
+            console.log('Données reçues dans store:', data)
 
             if (!data.token || !data.user) {
                 throw new Error('Données de connexion manquantes')
             }
 
-            // Stocker le token
+
             localStorage.setItem('auth_token', data.token)
 
-            // Mettre à jour le state
+
             set({
                 user: {
                     id: data.user.id.toString(),
@@ -72,9 +72,9 @@ export const useAuthStore = create<AuthState>((set) => ({
                 error: null,
             })
 
-            console.log('✅ Store auth mis à jour')
+            console.log('Store auth mis à jour')
         } catch (error) {
-            console.error('❌ Erreur login store:', error)
+            console.error('Erreur login store:', error)
             set({
                 user: null,
                 token: null,
@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     logout: () => {
-        console.log('🚪 Déconnexion')
+        console.log('Déconnexion')
         localStorage.removeItem('auth_token')
         set({
             user: null,
@@ -100,7 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         const token = localStorage.getItem('auth_token')
 
         if (!token) {
-            console.log('❌ Pas de token trouvé')
+            console.log('Pas de token trouvé')
             set({ isInitialized: true, user: null, token: null })
             return
         }
@@ -110,7 +110,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         try {
             console.log('🔍 Vérification session avec token:', token.substring(0, 20) + '...')
 
-            // 🔥 CORRECTION : Utiliser /api/session au lieu de /api/auth/session
+
             const response = await fetch('/api/session', {
                 method: 'GET',
                 headers: {
@@ -119,10 +119,10 @@ export const useAuthStore = create<AuthState>((set) => ({
                 },
             })
 
-            console.log('📥 Réponse session - Status:', response.status)
+            console.log('Réponse session - Status:', response.status)
 
             if (!response.ok) {
-                console.log('❌ Session invalide, nettoyage du token')
+                console.log('Session invalide, nettoyage du token')
                 localStorage.removeItem('auth_token')
                 set({
                     user: null,
@@ -134,7 +134,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
 
             const data = await response.json()
-            console.log('✅ Session valide:', data)
+            console.log('Session valide:', data)
 
             set({
                 user: {
@@ -149,7 +149,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 error: null,
             })
         } catch (error) {
-            console.error('❌ Erreur vérification session:', error)
+            console.error('Erreur vérification session:', error)
             localStorage.removeItem('auth_token')
             set({
                 user: null,

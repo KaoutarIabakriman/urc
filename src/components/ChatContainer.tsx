@@ -27,7 +27,7 @@ const useUrlParams = () => {
             }
         }
 
-        console.log('🎯 Résultat parsing:', { type, id })
+        console.log('Résultat parsing:', { type, id })
         setParams({ type, id })
 
     }, [location.pathname])
@@ -62,7 +62,6 @@ const ChatContainer: React.FC = () => {
         fetchRooms()
     }, [fetchUsers, fetchRooms])
 
-    // 🔥 SURVEILLANCE des changements d'état
     useEffect(() => {
         console.log('SURVEILLANCE currentRoom:', currentRoom?.name || 'null')
         console.log('SURVEILLANCE currentConversation:', currentConversation?.name || 'null')
@@ -71,50 +70,38 @@ const ChatContainer: React.FC = () => {
 
     useEffect(() => {
         console.log('Traitement URL - Type:', type, 'ID:', id)
-        console.log('Chemin complet:', location.pathname)
-        console.log('Users disponibles:', users.map(u => ({ id: u.id, username: u.username })))
-        console.log('Rooms disponibles:', rooms.map(r => ({ id: r.id, name: r.name })))
 
         if (type === 'user' && id) {
-            console.log('Recherche utilisateur avec ID:', id)
             const targetUser = users.find(u => String(u.id) === String(id))
-
             if (targetUser) {
                 console.log('Utilisateur trouvé:', targetUser.username)
                 const conversation = createPrivateConversation(targetUser)
                 setCurrentConversation(conversation)
                 setCurrentRoom(null)
             } else {
-                console.warn('Utilisateur NON trouvé avec ID:', id)
-                console.log('IDs disponibles:', users.map(u => ({ id: u.id, type: typeof u.id })))
+                console.log('Utilisateur NON trouvé')
                 setCurrentConversation(null)
             }
         }
         else if (type === 'room' && id) {
-            console.log('Recherche salon avec ID:', id)
             const targetRoom = rooms.find(r => String(r.id) === String(id))
             if (targetRoom) {
                 console.log('Salon trouvé:', targetRoom.name)
-                console.log('Avant setCurrentRoom - currentRoom:', currentRoom?.name || 'null')
                 setCurrentRoom(targetRoom)
                 setCurrentConversation(null)
-                console.log('Après setCurrentRoom')
-
-                console.log('Chargement des messages du salon...')
                 loadRoomMessages(targetRoom.id)
-
             } else {
-                console.warn('Salon NON trouvé avec ID:', id)
+                console.log('Salon NON trouvé')
                 setCurrentRoom(null)
             }
         }
         else {
-            console.log('Mode général - Aucune conversation sélectionnée')
+            console.log('Aucune sélection')
             setCurrentConversation(null)
             setCurrentRoom(null)
         }
-    }, [type, id, users, rooms, setCurrentConversation, setCurrentRoom, createPrivateConversation, loadRoomMessages, location.pathname])
 
+    }, [type, id])
     console.log('État final (render:', debugCount, '):', {
         type,
         id,
