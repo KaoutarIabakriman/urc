@@ -1,3 +1,4 @@
+// useAuthStore.ts
 import { create } from 'zustand'
 
 export interface User {
@@ -17,21 +18,27 @@ interface AuthState {
     logout: () => void
     checkAuth: () => Promise<void>
     clearError: () => void
+    initialize: () => Promise<void> // Ajoutez cette méthode
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     token: null,
     isLoading: false,
     isInitialized: false,
     error: null,
 
+    // Nouvelle méthode d'initialisation
+    initialize: async () => {
+        console.log('🔄 Initialisation du store auth...')
+        await get().checkAuth()
+    },
+
     login: async (username: string, password: string) => {
         set({ isLoading: true, error: null })
 
         try {
             console.log('Tentative de connexion:', username)
-
 
             const response = await fetch('/api/login', {
                 method: 'POST',
@@ -55,9 +62,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 throw new Error('Données de connexion manquantes')
             }
 
-
             localStorage.setItem('auth_token', data.token)
-
 
             set({
                 user: {
@@ -79,6 +84,7 @@ export const useAuthStore = create<AuthState>((set) => ({
                 user: null,
                 token: null,
                 isLoading: false,
+                isInitialized: true,
                 error: error instanceof Error ? error.message : 'Erreur de connexion',
             })
             throw error
@@ -109,7 +115,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         try {
             console.log('🔍 Vérification session avec token:', token.substring(0, 20) + '...')
-
 
             const response = await fetch('/api/session', {
                 method: 'GET',

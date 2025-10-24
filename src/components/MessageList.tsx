@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, {useEffect, useRef, useState} from 'react'
 import {
     Box,
     Typography,
@@ -10,6 +10,7 @@ import {
 import { useChatStore } from '../stores/useChatStore'
 import { useAuthStore } from '../stores/useAuthStore'
 
+
 const MessageList: React.FC = () => {
     const {
         messages,
@@ -20,24 +21,34 @@ const MessageList: React.FC = () => {
     } = useChatStore()
     const { user: currentUser } = useAuthStore()
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const [hasLoadedInitialMessages, setHasLoadedInitialMessages] = useState(false)
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, roomMessages])
 
     useEffect(() => {
+        // Réinitialiser le flag quand la conversation change
+        if (currentConversation && !currentRoom) {
+            setHasLoadedInitialMessages(false)
+        }
+    }, [currentConversation, currentRoom])
 
+    useEffect(() => {
         if (currentRoom) {
             return
         }
 
+        // Charger les messages seulement si nécessaire
         if (currentConversation?.target_user_id &&
-            currentConversation.target_user_id !== currentUser?.id) {
-            console.log('Chargement messages pour:', currentConversation.target_user_id)
-            loadMessages(currentConversation.target_user_id)
-        }
-    }, [currentConversation, currentRoom, loadMessages, currentUser?.id])
+            currentConversation.target_user_id !== currentUser?.id &&
+            !hasLoadedInitialMessages) {
 
+            console.log('Chargement initial des messages pour:', currentConversation.target_user_id)
+            loadMessages(currentConversation.target_user_id)
+            setHasLoadedInitialMessages(true)
+        }
+    }, [currentConversation, currentRoom, loadMessages, currentUser?.id, hasLoadedInitialMessages])
     const formatTimestamp = (timestamp: string | Date) => {
         try {
             const date = new Date(timestamp)

@@ -205,11 +205,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
     },
 
+// Dans useChatStore.ts - ASSUREZ-VOUS que ces fonctions ne réinitialisent PAS les messages :
     setCurrentConversation: (conversation: Conversation | null) => {
         console.log('[STORE] setCurrentConversation appelé avec:', conversation?.name || 'null')
         set({
             currentConversation: conversation,
-            messages: [],
+            // NE PAS réinitialiser les messages ici
+            // messages: [], // <-- CETTE LIGNE DOIT ÊTRE ABSENTE
         })
         console.log('[STORE] setCurrentConversation terminé')
     },
@@ -218,7 +220,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         console.log('[STORE] setCurrentRoom appelé avec:', room?.name || 'null')
         set({
             currentRoom: room,
-            roomMessages: [],
+            // NE PAS réinitialiser les messages ici
+            // roomMessages: [], // <-- CETTE LIGNE DOIT ÊTRE ABSENTE
         })
         console.log('[STORE] setCurrentRoom terminé')
     },

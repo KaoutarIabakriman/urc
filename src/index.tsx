@@ -1,8 +1,17 @@
+// index.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import App from './App'
 
+// 🔧 Nettoyage du token en mode développement
+if (process.env.NODE_ENV === 'development') {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+        console.log('🧹 Mode développement: Suppression du token de développement')
+        localStorage.removeItem('auth_token')
+    }
+}
 
 const theme = createTheme({
     palette: {

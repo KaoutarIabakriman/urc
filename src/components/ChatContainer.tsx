@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import React, { useEffect, useState, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Box } from '@mui/material'
 import ChatSidebar from './ChatSidebar'
 import MessageList from './MessageList'
@@ -37,7 +37,6 @@ const useUrlParams = () => {
 
 const ChatContainer: React.FC = () => {
     const location = useLocation()
-    const navigate = useNavigate()
     const { type, id } = useUrlParams()
 
     const {
@@ -53,23 +52,45 @@ const ChatContainer: React.FC = () => {
         loadRoomMessages
     } = useChatStore()
 
+    const [isInitialized, setIsInitialized] = useState(false)
+    const [lastProcessedUrl, setLastProcessedUrl] = useState<string>('')
 
-    const [debugCount, setDebugCount] = useState(0)
-
+    // Chargement initial des données - UNE SEULE FOIS
     useEffect(() => {
         console.log('Chargement initial des données...')
-        fetchUsers()
-        fetchRooms()
-    }, [fetchUsers, fetchRooms])
+        const loadData = async () => {
+            await fetchUsers()
+            await fetchRooms()
+            setIsInitialized(true)
+        }
+        loadData()
+    }, []) // Dépendances vides = exécution unique
 
+    // Gestion des paramètres d'URL
     useEffect(() => {
-        console.log('SURVEILLANCE currentRoom:', currentRoom?.name || 'null')
-        console.log('SURVEILLANCE currentConversation:', currentConversation?.name || 'null')
-        setDebugCount(prev => prev + 1)
-    }, [currentRoom, currentConversation])
+        if (!isInitialized) {
+            console.log('En attente de l\'initialisation...')
+            return
+        }
 
-    useEffect(() => {
+        const currentUrl = `${type}-${id}`
+        if (currentUrl === lastProcessedUrl) {
+            console.log('URL déjà traitée, ignore:', currentUrl)
+            return
+        }
+
         console.log('Traitement URL - Type:', type, 'ID:', id)
+        console.log('État actuel - Conversation:', currentConversation?.name, 'Room:', currentRoom?.name)
+
+        // Éviter les mises à jour inutiles
+        const isAlreadyOnCorrectConversation = type === 'user' && currentConversation?.target_user_id === id
+        const isAlreadyOnCorrectRoom = type === 'room' && currentRoom?.id === id
+
+        if (isAlreadyOnCorrectConversation || isAlreadyOnCorrectRoom) {
+            console.log('Déjà sur la bonne conversation/salon')
+            setLastProcessedUrl(currentUrl)
+            return
+        }
 
         if (type === 'user' && id) {
             const targetUser = users.find(u => String(u.id) === String(id))
@@ -78,9 +99,11 @@ const ChatContainer: React.FC = () => {
                 const conversation = createPrivateConversation(targetUser)
                 setCurrentConversation(conversation)
                 setCurrentRoom(null)
+                setLastProcessedUrl(currentUrl)
+                console.log('Conversation définie:', conversation.name)
             } else {
-                console.log('Utilisateur NON trouvé')
-                setCurrentConversation(null)
+                console.log('Utilisateur NON trouvé dans la liste actuelle')
+                // Ne pas réinitialiser la conversation si l'utilisateur n'est pas trouvé immédiatement
             }
         }
         else if (type === 'room' && id) {
@@ -90,26 +113,37 @@ const ChatContainer: React.FC = () => {
                 setCurrentRoom(targetRoom)
                 setCurrentConversation(null)
                 loadRoomMessages(targetRoom.id)
+                setLastProcessedUrl(currentUrl)
+                console.log('Salon défini:', targetRoom.name)
             } else {
-                console.log('Salon NON trouvé')
-                setCurrentRoom(null)
+                console.log('Salon NON trouvé dans la liste actuelle')
             }
         }
         else {
-            console.log('Aucune sélection')
-            setCurrentConversation(null)
-            setCurrentRoom(null)
+            console.log('Aucune sélection valide dans URL')
+            // Ne pas réinitialiser automatiquement
         }
+    }, [
+        type,
+        id,
+        users,
+        rooms,
+        isInitialized,
+        lastProcessedUrl,
+        currentConversation,
+        currentRoom
+    ])
 
-    }, [type, id])
-    console.log('État final (render:', debugCount, '):', {
+    console.log('État final:', {
         type,
         id,
         currentConversation: currentConversation?.name || 'Aucune',
         currentRoom: currentRoom?.name || 'Aucun',
         hasUsers: users.length > 0,
         hasRooms: rooms.length > 0,
-        path: location.pathname
+        path: location.pathname,
+        isInitialized,
+        lastProcessedUrl
     })
 
     return (
