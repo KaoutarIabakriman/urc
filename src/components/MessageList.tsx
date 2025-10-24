@@ -40,11 +40,14 @@ const MessageList: React.FC = () => {
 
     const formatTimestamp = (timestamp: string | Date) => {
         try {
-            const date = timestamp instanceof Date ? timestamp : new Date(timestamp)
-            return date.toLocaleTimeString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-            })
+            const date = new Date(timestamp)
+
+            const dateWithOffset = new Date(date.getTime() + (2 * 60 * 60 * 1000))
+
+            const hours = dateWithOffset.getHours().toString().padStart(2, '0')
+            const minutes = dateWithOffset.getMinutes().toString().padStart(2, '0')
+
+            return `${hours}:${minutes}`
         } catch (error) {
             console.error('Erreur formatage timestamp:', error, timestamp)
             return '--:--'

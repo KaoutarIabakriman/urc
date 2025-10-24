@@ -103,8 +103,11 @@ const ChatSidebar: React.FC = () => {
 
         try {
             const date = new Date(lastConnection)
+
+            const dateWithOffset = new Date(date.getTime() + (2 * 60 * 60 * 1000))
+
             const now = new Date()
-            const diffMs = now.getTime() - date.getTime()
+            const diffMs = now.getTime() - dateWithOffset.getTime()
             const diffMinutes = Math.floor(diffMs / (1000 * 60))
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
             const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -115,7 +118,7 @@ const ChatSidebar: React.FC = () => {
             if (diffDays === 1) return 'Hier'
             if (diffDays < 7) return `Il y a ${diffDays} jours`
 
-            return date.toLocaleDateString('fr-FR', {
+            return dateWithOffset.toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'short',
                 hour: '2-digit',
