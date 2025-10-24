@@ -22,7 +22,6 @@ function App() {
                 <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
                 <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
-                {/* 🔥 CORRECTION : Route unique qui capture tout */}
                 <Route path="/chat/*" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
 
                 <Route path="/" element={<Navigate to="/chat" replace />} />
