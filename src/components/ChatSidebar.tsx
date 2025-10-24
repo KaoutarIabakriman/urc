@@ -74,7 +74,6 @@ const ChatSidebar: React.FC = () => {
         }
     }, [fetchRooms])
 
-    // Rafraîchissement automatique
     useEffect(() => {
         if (!currentUser || !isInitialized) return
 
@@ -187,12 +186,11 @@ const ChatSidebar: React.FC = () => {
         navigate('/login')
     }
 
-// Dans handleUserSelect
     const handleUserSelect = (user: User) => {
-        console.log('👤 Sélection utilisateur:', user.username, 'ID:', user.id)
+        console.log('Sélection utilisateur:', user.username, 'ID:', user.id)
 
         if (String(user.id) === String(currentUser?.id)) {
-            console.log('🚫 Impossible de chatter avec soi-même')
+            console.log('Impossible de chatter avec soi-même')
             return
         }
 
@@ -200,21 +198,18 @@ const ChatSidebar: React.FC = () => {
         setCurrentConversation(conversation)
         setCurrentRoom(null)
 
-        // 🔥 URL absolue
         navigate(`/chat/user/${user.id}`)
-        console.log('📍 Navigation vers:', `/chat/user/${user.id}`)
+        console.log('Navigation vers:', `/chat/user/${user.id}`)
     }
 
-// Dans handleRoomSelect
     const handleRoomSelect = (room: Room) => {
-        console.log('🏠 Sélection salon:', room.name, 'ID:', room.id)
+        console.log('Sélection salon:', room.name, 'ID:', room.id)
 
         setCurrentRoom(room)
         setCurrentConversation(null)
 
-        // 🔥 URL absolue
         navigate(`/chat/room/${room.id}`)
-        console.log('📍 Navigation vers:', `/chat/room/${room.id}`)
+        console.log('Navigation vers:', `/chat/room/${room.id}`)
     }
 
     const handleRetry = () => {
@@ -379,7 +374,6 @@ const ChatSidebar: React.FC = () => {
                             )
                         })
                     ) : (
-                        // Liste des salons (accès automatique)
                         filteredRooms.map((room) => {
                             const isSelected = currentRoom?.id === room.id
 

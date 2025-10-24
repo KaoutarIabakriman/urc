@@ -82,7 +82,7 @@ const getAuthHeaders = () => {
     }
 }
 
-// 🔥 FONCTION HELPER POUR GÉRER LES ERREURS
+
 const getErrorMessage = (error: unknown): string => {
     if (error instanceof Error) {
         return error.message
@@ -104,7 +104,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     roomMessages: [],
     currentRoom: null,
 
-    // ========== CONVERSATIONS PRIVÉES ==========
+
 
     fetchUsers: async () => {
         set({ isLoading: true, error: null })
@@ -126,9 +126,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const data = await response.json()
             set({ users: data, isLoading: false })
         } catch (error) {
-            console.error('❌ Erreur récupération utilisateurs:', error)
+            console.error('Erreur récupération utilisateurs:', error)
             set({
-                error: getErrorMessage(error), // 🔥 CORRECTION ICI
+                error: getErrorMessage(error),
                 isLoading: false,
             })
             throw error
@@ -156,9 +156,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const data = await response.json()
             set({ messages: data, isLoading: false })
         } catch (error) {
-            console.error('❌ Erreur chargement messages:', error)
+            console.error('Erreur chargement messages:', error)
             set({
-                error: getErrorMessage(error), // 🔥 CORRECTION ICI
+                error: getErrorMessage(error),
                 isLoading: false,
             })
         }
@@ -196,9 +196,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }))
 
         } catch (error) {
-            console.error('❌ Erreur envoi message:', error)
+            console.error('Erreur envoi message:', error)
             set({
-                error: getErrorMessage(error), // 🔥 CORRECTION ICI
+                error: getErrorMessage(error),
                 isSending: false,
             })
             throw error
@@ -206,23 +206,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     },
 
     setCurrentConversation: (conversation: Conversation | null) => {
-        console.log('💬 [STORE] setCurrentConversation appelé avec:', conversation?.name || 'null')
+        console.log('[STORE] setCurrentConversation appelé avec:', conversation?.name || 'null')
         set({
             currentConversation: conversation,
             messages: [],
-            // 🔥 ENLEVER: currentRoom: null
         })
-        console.log('💬 [STORE] setCurrentConversation terminé')
+        console.log('[STORE] setCurrentConversation terminé')
     },
 
     setCurrentRoom: (room: Room | null) => {
-        console.log('🏠 [STORE] setCurrentRoom appelé avec:', room?.name || 'null')
+        console.log('[STORE] setCurrentRoom appelé avec:', room?.name || 'null')
         set({
             currentRoom: room,
             roomMessages: [],
-            // 🔥 ENLEVER: currentConversation: null
         })
-        console.log('🏠 [STORE] setCurrentRoom terminé')
+        console.log('[STORE] setCurrentRoom terminé')
     },
     createPrivateConversation: (user: User): Conversation => {
         return {
@@ -234,8 +232,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     },
 
     clearError: () => set({ error: null }),
-
-    // ========== SALONS ==========
 
     fetchRooms: async () => {
         set({ isLoading: true, error: null })
@@ -257,9 +253,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const rooms = await response.json()
             set({ rooms, isLoading: false })
         } catch (error) {
-            console.error('❌ Erreur chargement salons:', error)
+            console.error('Erreur chargement salons:', error)
             set({
-                error: getErrorMessage(error), // 🔥 CORRECTION ICI
+                error: getErrorMessage(error),
                 isLoading: false,
             })
         }
@@ -285,9 +281,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const messages = await response.json()
             set({ roomMessages: messages, isLoading: false })
         } catch (error) {
-            console.error('❌ Erreur chargement messages salon:', error)
+            console.error('Erreur chargement messages salon:', error)
             set({
-                error: getErrorMessage(error), // 🔥 CORRECTION ICI
+                error: getErrorMessage(error),
                 isLoading: false,
             })
         }
@@ -319,15 +315,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }))
 
         } catch (error) {
-            console.error('❌ Erreur envoi message salon:', error)
+            console.error('Erreur envoi message salon:', error)
             set({
-                error: getErrorMessage(error), // 🔥 CORRECTION ICI
+                error: getErrorMessage(error),
                 isSending: false,
             })
             throw error
         }
     },
-
-
 
 }))

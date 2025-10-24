@@ -13,9 +13,9 @@ import { useAuthStore } from '../stores/useAuthStore'
 const MessageList: React.FC = () => {
     const {
         messages,
-        roomMessages,           // 🔥 AJOUTÉ
+        roomMessages,
         currentConversation,
-        currentRoom,            // 🔥 AJOUTÉ
+        currentRoom,
         loadMessages
     } = useChatStore()
     const { user: currentUser } = useAuthStore()
@@ -23,17 +23,17 @@ const MessageList: React.FC = () => {
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messages, roomMessages])  // 🔥 AJOUTÉ roomMessages
+    }, [messages, roomMessages])
 
     useEffect(() => {
-        // 🔥 Ne charger que pour les conversations privées
+
         if (currentRoom) {
-            return  // Les messages des rooms sont chargés dans ChatContainer
+            return
         }
 
         if (currentConversation?.target_user_id &&
             currentConversation.target_user_id !== currentUser?.id) {
-            console.log('🔄 Chargement messages pour:', currentConversation.target_user_id)
+            console.log('Chargement messages pour:', currentConversation.target_user_id)
             loadMessages(currentConversation.target_user_id)
         }
     }, [currentConversation, currentRoom, loadMessages, currentUser?.id])
@@ -51,7 +51,6 @@ const MessageList: React.FC = () => {
         }
     }
 
-    // 🔥 AFFICHAGE SELON LE CONTEXTE
     if (!currentConversation && !currentRoom) {
         return (
             <Box
@@ -75,12 +74,11 @@ const MessageList: React.FC = () => {
         )
     }
 
-    // 🔥 CHOISIR LES BONS MESSAGES
     const isNewConversation = !currentRoom && messages.length === 0
     const displayMessages = currentRoom
-        ? roomMessages  // Messages du salon
+        ? roomMessages
         : isNewConversation
-            ? [{  // Message de bienvenue pour nouvelle conversation
+            ? [{
                 id: 'welcome',
                 content: `Commencez la conversation avec ${currentConversation?.name} ! 👋`,
                 sender_id: 'system',
@@ -89,7 +87,7 @@ const MessageList: React.FC = () => {
                 conversation_id: currentConversation?.id || '',
                 type: 'private' as const
             }]
-            : messages  // Messages de la conversation privée
+            : messages
 
     return (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -141,7 +139,6 @@ const MessageList: React.FC = () => {
                                         px: 0,
                                     }}
                                 >
-                                    {/* Avatar du destinataire (gauche) */}
                                     {!isCurrentUser && !isSystemMessage && showAvatar && (
                                         <Avatar
                                             sx={{
@@ -156,7 +153,6 @@ const MessageList: React.FC = () => {
                                         </Avatar>
                                     )}
 
-                                    {/* Avatar de l'utilisateur courant (droite) */}
                                     {isCurrentUser && !isSystemMessage && (
                                         <Avatar
                                             sx={{
@@ -234,7 +230,6 @@ const MessageList: React.FC = () => {
                                     </Box>
                                 </ListItem>
 
-                                {/* Espacement entre groupes de messages */}
                                 {!isSystemMessage && index < displayMessages.length - 1 &&
                                     displayMessages[index + 1]?.sender_id !== message.sender_id && (
                                         <Box sx={{ height: 8 }} />

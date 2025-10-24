@@ -1,4 +1,3 @@
-// pages/Chat.tsx
 import React, { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Box } from '@mui/material'
@@ -11,21 +10,18 @@ const Chat: React.FC = () => {
         setCurrentConversation,
         users,
         createPrivateConversation,
-        currentConversation
     } = useChatStore()
 
-    // 🔥 Charger la conversation quand l'URL change
     useEffect(() => {
         if (userId) {
-            console.log('🔄 Chargement conversation depuis URL:', userId)
+            console.log('Chargement conversation depuis URL:', userId)
             const targetUser = users.find(u => u.id === userId)
             if (targetUser) {
                 const conversation = createPrivateConversation(targetUser)
                 setCurrentConversation(conversation)
-                console.log('✅ Conversation chargée depuis URL:', targetUser.username)
+                console.log('Conversation chargée depuis URL:', targetUser.username)
             }
         } else {
-            // 🔥 Si pas de userId, réinitialiser la conversation courante
             setCurrentConversation(null)
         }
     }, [userId, users, setCurrentConversation, createPrivateConversation])

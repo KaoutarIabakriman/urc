@@ -17,10 +17,10 @@ const MessageInput: React.FC = () => {
     const [message, setMessage] = useState('')
     const {
         currentConversation,
-        currentRoom,           // 🔥 AJOUTÉ
+        currentRoom,
         isSending,
         sendMessage,
-        sendRoomMessage        // 🔥 AJOUTÉ
+        sendRoomMessage
     } = useChatStore()
     const { user: currentUser } = useAuthStore()
 
@@ -28,12 +28,9 @@ const MessageInput: React.FC = () => {
         if (!message.trim() || !currentUser) return
 
         try {
-            // 🔥 ENVOYER SELON LE CONTEXTE
             if (currentRoom) {
-                // Envoi dans un salon
                 await sendRoomMessage(message, currentRoom.id)
             } else if (currentConversation?.target_user_id) {
-                // Envoi en conversation privée
                 await sendMessage(message, currentConversation.target_user_id)
             }
 
@@ -50,7 +47,6 @@ const MessageInput: React.FC = () => {
         }
     }
 
-    // 🔥 Afficher seulement si conversation ou room sélectionnée
     if (!currentConversation && !currentRoom) {
         return null
     }

@@ -34,28 +34,22 @@ const Login: React.FC = () => {
         setLocalError('')
 
         try {
-            console.log('🔐 Connexion via store pour:', username)
+            console.log('Connexion via store pour:', username)
 
             // 🔥 UTILISER UNIQUEMENT LE STORE
             await login(username, password)
 
-            console.log('✅ Connexion réussie, redirection vers /chat')
+            console.log('Connexion réussie, redirection vers /chat')
             navigate('/chat')
 
         } catch (error) {
-            console.error('❌ Erreur login:', error)
+            console.error('Erreur login:', error)
             setLocalError(
                 error instanceof Error
                     ? error.message
                     : 'Identifiant ou mot de passe incorrect'
             )
         }
-    }
-
-    // Remplissage automatique pour test
-    const handleDemoLogin = () => {
-        setUsername('lala1')
-        setPassword('testubo')
     }
 
     return (

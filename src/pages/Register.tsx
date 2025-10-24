@@ -46,7 +46,6 @@ const Register: React.FC = () => {
         setSuccess('')
         setIsLoading(true)
 
-        // Validations côté client
         if (formData.password !== formData.confirmPassword) {
             setError('Les mots de passe ne correspondent pas')
             setIsLoading(false)
@@ -60,7 +59,7 @@ const Register: React.FC = () => {
         }
 
         try {
-            console.log('📤 Envoi inscription...', {
+            console.log('Envoi inscription...', {
                 username: formData.username,
                 email: formData.email,
                 passwordLength: formData.password.length
@@ -79,16 +78,14 @@ const Register: React.FC = () => {
                 }),
             })
 
-            console.log('📥 Réponse reçue - Status:', response.status)
-            console.log('📥 Content-Type:', response.headers.get('content-type'))
+            console.log('Réponse reçue - Status:', response.status)
+            console.log('Content-Type:', response.headers.get('content-type'))
 
-            // 🔥 VÉRIFIER LE CONTENT-TYPE AVANT DE PARSER
             const contentType = response.headers.get('content-type')
 
             if (!contentType || !contentType.includes('application/json')) {
-                // Si ce n'est pas du JSON, lire comme texte
                 const textResponse = await response.text()
-                console.error('❌ Réponse non-JSON reçue:', textResponse.substring(0, 200))
+                console.error('Réponse non-JSON reçue:', textResponse.substring(0, 200))
 
                 if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
                     throw new Error('Erreur serveur (HTML reçu). Vérifiez les logs Vercel.')
@@ -97,39 +94,35 @@ const Register: React.FC = () => {
                 }
             }
 
-            // 🔥 PARSER LE JSON EN TOUTE SÉCURITÉ
             let data
             try {
                 const responseText = await response.text()
-                console.log('📄 Texte brut:', responseText.substring(0, 200))
+                console.log('Texte brut:', responseText.substring(0, 200))
 
                 if (!responseText.trim()) {
                     throw new Error('Réponse vide du serveur')
                 }
 
                 data = JSON.parse(responseText)
-                console.log('✅ JSON parsé:', data)
+                console.log('JSON parsé:', data)
             } catch (parseError) {
-                console.error('❌ Erreur parsing JSON:', parseError)
+                console.error('Erreur parsing JSON:', parseError)
                 throw new Error('Format de réponse invalide du serveur')
             }
 
-            // 🔥 GÉRER LA RÉPONSE SELON LE STATUS
             if (response.ok) {
-                // Succès (201)
                 setSuccess('Compte créé avec succès ! Redirection...')
-                console.log('🎉 Inscription réussie')
+                console.log('Inscription réussie')
 
                 if (data.token) {
                     localStorage.setItem('auth_token', data.token)
-                    console.log('🔑 Token stocké')
+                    console.log('Token stocké')
                 }
 
                 setTimeout(() => {
                     navigate('/login')
                 }, 2000)
             } else {
-                // Erreur (400, 409, 500, etc.)
                 let errorMessage = `Erreur ${response.status}`
 
                 if (data.error) {
@@ -145,10 +138,10 @@ const Register: React.FC = () => {
                 }
 
                 setError(errorMessage)
-                console.error('❌ Erreur inscription:', errorMessage)
+                console.error('Erreur inscription:', errorMessage)
             }
         } catch (err) {
-            console.error('💥 Erreur catch:', err)
+            console.error('Erreur catch:', err)
 
             let errorMessage = 'Erreur de connexion au serveur'
             if (err instanceof Error) {
