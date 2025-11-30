@@ -7,8 +7,8 @@
     "@chakra-ui/icons": "^2.2.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.4",
-    "@mui/material": "^7.3.4",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.5",
     "@pusher/push-notifications-server": "^1.2.7",
     "@pusher/push-notifications-web": "^1.1.0",
     "@testing-library/jest-dom": "^6.9.1",
@@ -24,12 +24,12 @@
     "pusher-js": "^8.4.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.4",
+    "react-router-dom": "^7.9.6",
     "react-scripts": "^0.0.0",
     "undici": "^7.16.0",
     "vercel": "^32.0.1",
     "web-vitals": "^5.1.0",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.9"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -50,8 +50,8 @@
     ]
   },
   "devDependencies": {
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^5.5.0",
     "@typescript-eslint/parser": "^5.5.0",
     "@vercel/edge": "^1.2.2",
