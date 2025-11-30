@@ -12,78 +12,95 @@ export default async function handler(request) {
     try {
         const { username, password } = await request.json();
         
-        const hash = await crypto.subtle.digest('SHA-256', stringToArrayBuffer(username + password));
+        console.log('🔐 Tentative de login pour:', username);
+        
+        const hash = await crypto.subtle.digest(
+            'SHA-256', 
+            stringToArrayBuffer(username + password)
+        );
         const hashed64 = arrayBufferToBase64(hash);
+        
+        console.log('🔐 Hash généré:', hashed64.substring(0, 20) + '...');
         
         const client = await db.connect();
         
-        // ✅ CORRECTION : sq -> sql
-        const { rowCount, rows } = await client.sql`
-            SELECT * FROM users 
-            WHERE username = ${username} AND password = ${hashed64}
-        `;
-        
-        if (rowCount !== 1) {
-            const error = { 
-                code: "UNAUTHORIZED", 
-                message: "Identifiant ou mot de passe incorrect" 
-            };
-            return new Response(JSON.stringify(error), {
-                status: 401,
-                headers: { 'content-type': 'application/json' },
-            });
-        } else {
-            // ✅ CORRECTION : sq -> sql
+        try {
+            // ✅ CORRECTION : Utiliser sql avec backticks corrects
+            const result = await client.sql`
+                SELECT * FROM users 
+                WHERE username = ${username} AND password = ${hashed64}
+            `;
+            
+            console.log('📊 Résultats trouvés:', result.rowCount);
+            
+            if (result.rowCount !== 1) {
+                console.log('❌ Aucun utilisateur trouvé ou mot de passe incorrect');
+                
+                client.release();
+                
+                return new Response(JSON.stringify({ 
+                    error: "Identifiant ou mot de passe incorrect" 
+                }), {
+                    status: 401,
+                    headers: { 'content-type': 'application/json' },
+                });
+            }
+            
+            const user = result.rows[0];
+            console.log('✅ Utilisateur trouvé:', user.username);
+            
+            // Mise à jour du last_login
             await client.sql`
                 UPDATE users 
                 SET last_login = NOW() 
-                WHERE user_id = ${rows[0].user_id}
+                WHERE user_id = ${user.user_id}
             `;
             
-            const token = crypto.randomUUID().toString();
-            const user = {
-                id: rows[0].user_id,
-                username: rows[0].username,
-                email: rows[0].email,
-                externalId: rows[0].external_id
+            client.release();
+            
+            // Génération du token
+            const token = crypto.randomUUID();
+            
+            const userSession = {
+                id: user.user_id,
+                username: user.username,
+                email: user.email,
+                externalId: user.external_id
             };
             
             console.log('💾 Stockage Redis pour token:', token.substring(0, 20) + '...');
             
-            await redis.set(`session:${token}`, JSON.stringify(user), { ex: 3600 });
-            console.log('Stocké avec clé: session:' + token.substring(0, 20) + '...');
+            // ✅ CORRECTION : Parenthèses au lieu de backticks pour les appels de fonction
+            await redis.set(`session:${token}`, JSON.stringify(userSession), { ex: 3600 });
+            await redis.set(token, JSON.stringify(userSession), { ex: 3600 });
+            await redis.hset("users", { [userSession.id]: JSON.stringify(userSession) });
             
-            await redis.set(token, JSON.stringify(user), { ex: 3600 });
-            console.log('Stocké avec clé: ' + token.substring(0, 20) + '...');
-            
-            await redis.hset("users", { [user.id]: JSON.stringify(user) });
-            console.log('Stocké dans hash users');
+            console.log('✅ Session stockée dans Redis');
             
             // Vérification
-            const verify1 = await redis.get(`session:${token}`);
-            const verify2 = await redis.get(token);
-            console.log('Vérification session: préfixe:', verify1 ? 'SUCCÈS' : 'ÉCHEC');
-            console.log('Vérification sans préfixe:', verify2 ? 'SUCCÈS' : 'ÉCHEC');
-            
-            if (!verify1 && !verify2) {
-                console.log('CRITIQUE: Aucun stockage réussi!');
-            } else {
-                console.log('Stockage Redis confirmé');
-            }
+            const verify = await redis.get(`session:${token}`);
+            console.log('🔍 Vérification stockage:', verify ? 'OK' : 'ÉCHEC');
             
             return new Response(JSON.stringify({
                 token: token,
-                user: user
+                user: userSession
             }), {
                 status: 200,
                 headers: { 'content-type': 'application/json' },
             });
+            
+        } catch (dbError) {
+            console.error('💥 Erreur DB:', dbError);
+            client.release();
+            throw dbError;
         }
+        
     } catch (error) {
-        console.error('Erreur login:', error);
+        console.error('💥 Erreur login:', error);
+        
         return new Response(JSON.stringify({
-            code: "SERVER_ERROR",
-            message: "Erreur serveur"
+            error: "Erreur serveur",
+            details: error.message
         }), {
             status: 500,
             headers: { 'content-type': 'application/json' },
