@@ -15,10 +15,11 @@ interface AuthState {
     isInitialized: boolean
     error: string | null
     login: (username: string, password: string) => Promise<void>
+    register: (username: string, email: string, password: string) => Promise<void> // ✅ ADD THIS
     logout: () => void
     checkAuth: () => Promise<void>
     clearError: () => void
-    initialize: () => Promise<void> // Ajoutez cette méthode
+    initialize: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -28,10 +29,75 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isInitialized: false,
     error: null,
 
-    // Nouvelle méthode d'initialisation
     initialize: async () => {
         console.log('🔄 Initialisation du store auth...')
         await get().checkAuth()
+    },
+
+    // ✅ NEW REGISTER METHOD
+    register: async (username: string, email: string, password: string) => {
+        set({ isLoading: true, error: null })
+
+        try {
+            console.log('📝 Tentative inscription:', username, email)
+
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, email, password }),
+            })
+
+            console.log('📡 Réponse register - Status:', response.status)
+
+            const textResponse = await response.text()
+            console.log('📄 Texte brut:', textResponse)
+
+            let data
+            try {
+                data = JSON.parse(textResponse)
+                console.log('✅ JSON parsé:', data)
+            } catch (parseError) {
+                console.error('❌ Erreur parsing JSON:', parseError)
+                throw new Error('Réponse serveur invalide')
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.details || 'Erreur lors de l\'inscription')
+            }
+
+            if (!data.token || !data.user) {
+                throw new Error('Données d\'inscription manquantes')
+            }
+
+            localStorage.setItem('auth_token', data.token)
+
+            set({
+                user: {
+                    id: data.user.id.toString(),
+                    username: data.user.username,
+                    email: data.user.email,
+                    externalId: data.user.externalId,
+                },
+                token: data.token,
+                isLoading: false,
+                isInitialized: true,
+                error: null,
+            })
+
+            console.log('✅ Inscription réussie!')
+        } catch (error) {
+            console.error('❌ Erreur inscription:', error)
+            set({
+                user: null,
+                token: null,
+                isLoading: false,
+                isInitialized: true,
+                error: error instanceof Error ? error.message : 'Erreur lors de l\'inscription',
+            })
+            throw error
+        }
     },
 
     login: async (username: string, password: string) => {
@@ -50,13 +116,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             console.log('Réponse login store - Status:', response.status)
 
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.message || 'Erreur de connexion')
+            const textResponse = await response.text()
+            let data
+            try {
+                data = JSON.parse(textResponse)
+            } catch (parseError) {
+                console.error('Erreur parsing JSON:', parseError)
+                throw new Error('Réponse serveur invalide')
             }
 
-            const data = await response.json()
-            console.log('Données reçues dans store:', data)
+            if (!response.ok) {
+                throw new Error(data.error || 'Erreur de connexion')
+            }
 
             if (!data.token || !data.user) {
                 throw new Error('Données de connexion manquantes')

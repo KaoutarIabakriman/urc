@@ -1,19 +1,11 @@
-import { db } from '@vercel/postgres';
+import { sql } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 
 export const config = {
-    runtime: 'edge',
+    runtime: 'nodejs', // ✅ Changed from 'edge'
 };
 
 const redis = Redis.fromEnv();
-
-function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
 
 function stringToArrayBuffer(str) {
     const encoder = new TextEncoder();
@@ -45,8 +37,6 @@ export default async function handler(request) {
         });
     }
 
-    let client;
-    
     try {
         const { username, email, password } = await request.json();
 
@@ -73,12 +63,10 @@ export default async function handler(request) {
         const hashedPassword = await hashPassword(username, password);
         console.log('🔐 Mot de passe haché:', hashedPassword.substring(0, 20) + '...');
 
-        client = await db.connect();
-        console.log('✅ Connexion DB établie');
+        const externalId = crypto.randomUUID();
 
-        const externalId = generateUUID();
-
-        const checkUser = await client.sql`
+        // Check if user exists
+        const checkUser = await sql`
             SELECT user_id FROM users
             WHERE username = ${username} OR email = ${email}
         `;
@@ -93,7 +81,8 @@ export default async function handler(request) {
             });
         }
 
-        const result = await client.sql`
+        // Insert new user
+        const result = await sql`
             INSERT INTO users (username, email, password, created_on, external_id)
             VALUES (${username}, ${email}, ${hashedPassword}, NOW(), ${externalId})
             RETURNING user_id, username, email, external_id
@@ -111,6 +100,7 @@ export default async function handler(request) {
             externalId: newUser.external_id
         };
 
+        // Store session in Redis
         await redis.set(`session:${token}`, JSON.stringify(user), { ex: 3600 });
         await redis.set(token, JSON.stringify(user), { ex: 3600 });
         await redis.hset("users", { [user.id]: JSON.stringify(user) });
@@ -131,17 +121,13 @@ export default async function handler(request) {
 
     } catch (error) {
         console.error('💥 Erreur inscription:', error);
+        console.error('💥 Stack:', error.stack);
         return new Response(JSON.stringify({
             error: "Erreur lors de l'inscription",
-            details: error.message
+            details: error.message || String(error)
         }), {
             status: 500,
             headers: { 'content-type': 'application/json' },
         });
-        
-    } finally {
-        if (client) {
-            client.release();
-        }
     }
 }

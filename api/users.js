@@ -1,32 +1,35 @@
-import { db } from '@vercel/postgres';
+import { sql } from '@vercel/postgres';
 import { checkSession, unauthorizedResponse } from '../lib/session';
 
-export const config = { runtime: 'edge' };
+export const config = { 
+    runtime: 'nodejs' // ✅ Changed from 'edge'
+};
 
 export default async function handler(request) {
     console.log('🔐 Début /api/users');
-
+    
     try {
         const user = await checkSession(request);
-
+        
         if (!user) {
-            console.log('Session invalide');
+            console.log('❌ Session invalide');
             return unauthorizedResponse();
         }
-
-        console.log('Session valide pour:', user.username);
-
-        const client = await db.connect();
-
+        
+        console.log('✅ Session valide pour:', user.username);
+        
         try {
-            await client.sql`
+            // Update last login
+            await sql`
                 UPDATE users 
                 SET last_login = NOW() 
                 WHERE user_id = ${user.id}
             `;
+            
             console.log('🟢 Présence mise à jour pour:', user.username);
-
-            const result = await client.sql`
+            
+            // Get all users with online status
+            const result = await sql`
                 SELECT 
                     user_id AS id,
                     username,
@@ -40,12 +43,12 @@ export default async function handler(request) {
                 FROM users
                 ORDER BY username
             `;
-
-            console.log(`${result.rows.length} utilisateurs récupérés`);
-
+            
+            console.log(`📊 ${result.rows.length} utilisateurs récupérés`);
+            
             const onlineCount = result.rows.filter(u => u.is_online).length;
-            console.log(`${onlineCount} utilisateurs en ligne`);
-
+            console.log(`🟢 ${onlineCount} utilisateurs en ligne`);
+            
             return new Response(JSON.stringify(result.rows), {
                 status: 200,
                 headers: {
@@ -53,20 +56,24 @@ export default async function handler(request) {
                     'cache-control': 'no-cache, no-store, must-revalidate'
                 }
             });
-
+            
         } catch (dbError) {
-            console.error('Erreur DB:', dbError);
-            return new Response(JSON.stringify({ error: 'Erreur base de données' }), {
+            console.error('💥 Erreur DB:', dbError);
+            return new Response(JSON.stringify({ 
+                error: 'Erreur base de données',
+                details: dbError.message 
+            }), {
                 status: 500,
                 headers: { 'content-type': 'application/json' }
             });
-        } finally {
-            client.release();
         }
-
+        
     } catch (error) {
-        console.error('Erreur API /users:', error);
-        return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
+        console.error('💥 Erreur API /users:', error);
+        return new Response(JSON.stringify({ 
+            error: 'Erreur serveur',
+            details: error.message 
+        }), {
             status: 500,
             headers: { 'content-type': 'application/json' }
         });

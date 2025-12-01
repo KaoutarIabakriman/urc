@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useAuthStore } from '../stores/useAuthStore'
 import {
     Container,
     Paper,
@@ -24,7 +25,6 @@ const Register: React.FC = () => {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
     const [isLoading, setIsLoading] = useState(false)
-    const navigate = useNavigate()
     const usernameRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -40,116 +40,35 @@ const Register: React.FC = () => {
         })
     }
 
+ const { register: registerUser } = useAuthStore() // Add this
+    const navigate = useNavigate()
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
         setSuccess('')
-        setIsLoading(true)
 
         if (formData.password !== formData.confirmPassword) {
             setError('Les mots de passe ne correspondent pas')
-            setIsLoading(false)
             return
         }
 
         if (formData.password.length < 6) {
             setError('Le mot de passe doit contenir au moins 6 caractères')
-            setIsLoading(false)
             return
         }
 
+        setIsLoading(true)
+
         try {
-            console.log('Envoi inscription...', {
-                username: formData.username,
-                email: formData.email,
-                passwordLength: formData.password.length
-            })
-
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: formData.username,
-                    email: formData.email,
-                    password: formData.password
-                }),
-            })
-
-            console.log('Réponse reçue - Status:', response.status)
-            console.log('Content-Type:', response.headers.get('content-type'))
-
-            const contentType = response.headers.get('content-type')
-
-            if (!contentType || !contentType.includes('application/json')) {
-                const textResponse = await response.text()
-                console.error('Réponse non-JSON reçue:', textResponse.substring(0, 200))
-
-                if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
-                    throw new Error('Erreur serveur (HTML reçu). Vérifiez les logs Vercel.')
-                } else {
-                    throw new Error(`Réponse invalide: ${textResponse.substring(0, 100)}`)
-                }
-            }
-
-            let data
-            try {
-                const responseText = await response.text()
-                console.log('Texte brut:', responseText.substring(0, 200))
-
-                if (!responseText.trim()) {
-                    throw new Error('Réponse vide du serveur')
-                }
-
-                data = JSON.parse(responseText)
-                console.log('JSON parsé:', data)
-            } catch (parseError) {
-                console.error('Erreur parsing JSON:', parseError)
-                throw new Error('Format de réponse invalide du serveur')
-            }
-
-            if (response.ok) {
-                setSuccess('Compte créé avec succès ! Redirection...')
-                console.log('Inscription réussie')
-
-                if (data.token) {
-                    localStorage.setItem('auth_token', data.token)
-                    console.log('Token stocké')
-                }
-
-                setTimeout(() => {
-                    navigate('/login')
-                }, 2000)
-            } else {
-                let errorMessage = `Erreur ${response.status}`
-
-                if (data.error) {
-                    if (typeof data.error === 'object' && data.error.message) {
-                        errorMessage = data.error.message
-                    } else if (typeof data.error === 'string') {
-                        errorMessage = data.error
-                    }
-                } else if (data.message) {
-                    errorMessage = data.message
-                } else if (data.details) {
-                    errorMessage = data.details
-                }
-
-                setError(errorMessage)
-                console.error('Erreur inscription:', errorMessage)
-            }
+            await registerUser(formData.username, formData.email, formData.password)
+            setSuccess('Compte créé avec succès ! Redirection...')
+            
+            setTimeout(() => {
+                navigate('/chat') // Navigate to chat after successful registration
+            }, 1500)
         } catch (err) {
-            console.error('Erreur catch:', err)
-
-            let errorMessage = 'Erreur de connexion au serveur'
-            if (err instanceof Error) {
-                errorMessage = err.message
-            } else if (typeof err === 'string') {
-                errorMessage = err
-            }
-
+            const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'inscription'
             setError(errorMessage)
         } finally {
             setIsLoading(false)
