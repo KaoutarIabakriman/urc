@@ -1,10 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 
-export const config = {
-    runtime: 'nodejs', // ✅ Changed from 'edge'
-};
-
 const redis = Redis.fromEnv();
 
 function stringToArrayBuffer(str) {
@@ -29,34 +25,26 @@ async function hashPassword(username, password) {
     return arrayBufferToBase64(hash);
 }
 
-export default async function handler(request) {
-    if (request.method !== 'POST') {
-        return new Response(JSON.stringify({ error: 'Méthode non autorisée' }), {
-            status: 405,
-            headers: { 'content-type': 'application/json' },
-        });
+// ✅ Pages Router format: export default function
+export default async function handler(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Méthode non autorisée' });
     }
 
     try {
-        const { username, email, password } = await request.json();
+        const { username, email, password } = req.body;
 
         console.log('📨 Inscription demandée pour:', username, email);
 
         if (!username || !email || !password) {
-            return new Response(JSON.stringify({
+            return res.status(400).json({
                 error: 'Données manquantes'
-            }), {
-                status: 400,
-                headers: { 'content-type': 'application/json' },
             });
         }
 
         if (password.length < 6) {
-            return new Response(JSON.stringify({
+            return res.status(400).json({
                 error: 'Le mot de passe doit contenir au moins 6 caractères'
-            }), {
-                status: 400,
-                headers: { 'content-type': 'application/json' },
             });
         }
 
@@ -73,11 +61,8 @@ export default async function handler(request) {
 
         if (checkUser.rows.length > 0) {
             console.log('❌ Utilisateur déjà existant');
-            return new Response(JSON.stringify({
+            return res.status(409).json({
                 error: 'Utilisateur ou email déjà existant'
-            }), {
-                status: 409,
-                headers: { 'content-type': 'application/json' },
             });
         }
 
@@ -107,27 +92,21 @@ export default async function handler(request) {
 
         console.log('✅ Session créée');
 
-        return new Response(JSON.stringify({
+        return res.status(201).json({
             user: {
                 id: newUser.user_id,
                 username: newUser.username,
                 email: newUser.email
             },
             token: token
-        }), {
-            status: 201,
-            headers: { 'content-type': 'application/json' },
         });
 
     } catch (error) {
         console.error('💥 Erreur inscription:', error);
         console.error('💥 Stack:', error.stack);
-        return new Response(JSON.stringify({
+        return res.status(500).json({
             error: "Erreur lors de l'inscription",
             details: error.message || String(error)
-        }), {
-            status: 500,
-            headers: { 'content-type': 'application/json' },
         });
     }
 }
