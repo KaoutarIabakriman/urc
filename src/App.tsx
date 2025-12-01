@@ -49,7 +49,7 @@ function App() {
     // Vérifier l'authentification au démarrage
     useEffect(() => {
         const initializeAuth = async () => {
-            console.log('🔐 Initialisation de l\'authentification...')
+            console.log('Initialisation de l\'authentification...')
             await checkAuth()
             setIsCheckingAuth(false)
         }

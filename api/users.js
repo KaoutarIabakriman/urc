@@ -12,11 +12,11 @@ export default async function handler(request) {
         const user = await checkSession(request);
         
         if (!user) {
-            console.log('❌ Session invalide');
+            console.log('Session invalide');
             return unauthorizedResponse();
         }
         
-        console.log('✅ Session valide pour:', user.username);
+        console.log('Session valide pour:', user.username);
         
         try {
             // Update last login
@@ -26,7 +26,7 @@ export default async function handler(request) {
                 WHERE user_id = ${user.id}
             `;
             
-            console.log('🟢 Présence mise à jour pour:', user.username);
+            console.log('Présence mise à jour pour:', user.username);
             
             // Get all users with online status
             const result = await sql`
@@ -44,10 +44,10 @@ export default async function handler(request) {
                 ORDER BY username
             `;
             
-            console.log(`📊 ${result.rows.length} utilisateurs récupérés`);
+            console.log(`${result.rows.length} utilisateurs récupérés`);
             
             const onlineCount = result.rows.filter(u => u.is_online).length;
-            console.log(`🟢 ${onlineCount} utilisateurs en ligne`);
+            console.log(`${onlineCount} utilisateurs en ligne`);
             
             return new Response(JSON.stringify(result.rows), {
                 status: 200,
@@ -58,7 +58,7 @@ export default async function handler(request) {
             });
             
         } catch (dbError) {
-            console.error('💥 Erreur DB:', dbError);
+            console.error('Erreur DB:', dbError);
             return new Response(JSON.stringify({ 
                 error: 'Erreur base de données',
                 details: dbError.message 
@@ -69,7 +69,7 @@ export default async function handler(request) {
         }
         
     } catch (error) {
-        console.error('💥 Erreur API /users:', error);
+        console.error('Erreur API /users:', error);
         return new Response(JSON.stringify({ 
             error: 'Erreur serveur',
             details: error.message 

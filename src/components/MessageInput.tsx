@@ -35,7 +35,7 @@ const MessageInput: React.FC = () => {
 
 
     const handleSendMessage = async () => {
-        console.log('📤 Tentative d\'envoi:', {
+        console.log('Tentative d\'envoi:', {
             hasMessage: !!message.trim(),
             hasImage: !!selectedImage,
             messageLength: message.length,
@@ -45,49 +45,49 @@ const MessageInput: React.FC = () => {
         })
 
         if ((!message.trim() && !selectedImage) || !currentUser) {
-            console.log('❌ Conditions non remplies pour envoi')
+            console.log('Conditions non remplies pour envoi')
             return
         }
 
         try {
             if (selectedImage) {
-                console.log('📸 Envoi d\'image...')
+                console.log('Envoi d\'image...')
                 setIsUploadingImage(true)
 
                 const textToSend = message.trim()
-                console.log('📝 Texte accompagnant:', textToSend || '(vide)')
+                console.log('Texte accompagnant:', textToSend || '(vide)')
 
                 if (currentRoom) {
-                    console.log('🏢 Envoi vers salon:', currentRoom.id, currentRoom.name)
-                    console.log('✅ Image envoyée au salon')
+                    console.log('Envoi vers salon:', currentRoom.id, currentRoom.name)
+                    console.log('Image envoyée au salon')
                 } else if (currentConversation?.target_user_id) {
-                    console.log('👤 Envoi vers utilisateur:', currentConversation.target_user_id, currentConversation.name)
-                    console.log('✅ Image envoyée à l\'utilisateur')
+                    console.log('Envoi vers utilisateur:', currentConversation.target_user_id, currentConversation.name)
+                    console.log('Image envoyée à l\'utilisateur')
                 } else {
-                    console.error('❌ Pas de destination définie')
+                    console.error('Pas de destination définie')
                     throw new Error('Aucune destination définie')
                 }
 
                 setIsUploadingImage(false)
                 setMessage('')
-                console.log('✅ Envoi terminé avec succès')
+                console.log('Envoi terminé avec succès')
             } else if (message.trim()) {
-                console.log('💬 Envoi de message texte seul...')
+                console.log('Envoi de message texte seul...')
 
                 if (currentRoom) {
-                    console.log('🏢 Envoi vers salon:', currentRoom.id)
+                    console.log('Envoi vers salon:', currentRoom.id)
                     await sendRoomMessage(message, currentRoom.id)
                 } else if (currentConversation?.target_user_id) {
-                    console.log('👤 Envoi vers utilisateur:', currentConversation.target_user_id)
+                    console.log('Envoi vers utilisateur:', currentConversation.target_user_id)
                     await sendMessage(message, currentConversation.target_user_id)
                 }
 
                 setMessage('')
-                console.log('✅ Message texte envoyé')
+                console.log('Message texte envoyé')
             }
 
         } catch (error) {
-            console.error('❌ ERREUR lors de l\'envoi:', error)
+            console.error('ERREUR lors de l\'envoi:', error)
             console.error('Détails de l\'erreur:', {
                 message: error instanceof Error ? error.message : 'Erreur inconnue',
                 stack: error instanceof Error ? error.stack : undefined,

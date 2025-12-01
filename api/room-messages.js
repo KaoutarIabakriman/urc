@@ -22,7 +22,7 @@ export default async function handler(request) {
 
         // ✅ ENVOI MESSAGE
         if (request.method === 'POST') {
-            console.log('📝 POST room-messages - Parsing JSON...');
+            console.log('POST room-messages - Parsing JSON...');
             let roomId, content;
 
             try {
@@ -30,7 +30,7 @@ export default async function handler(request) {
                 roomId = body.roomId;
                 content = body.content || '';
             } catch (jsonError) {
-                console.error('❌ Erreur parsing JSON:', jsonError);
+                console.error('Erreur parsing JSON:', jsonError);
                 return new Response(JSON.stringify({
                     code: "INVALID_REQUEST",
                     message: "Format de requête invalide"
@@ -60,7 +60,7 @@ export default async function handler(request) {
                 });
             }
 
-            console.log('💾 Insertion message salon...');
+            console.log('Insertion message salon...');
             const result = await client.sql`
                 INSERT INTO room_messages (room_id, user_id, content)
                 VALUES (${roomId}, ${user.id}, ${content})
@@ -79,7 +79,7 @@ export default async function handler(request) {
                 type: 'room'
             };
 
-            console.log('✅ Message salon sauvegardé:', responseMessage);
+            console.log('Message salon sauvegardé:', responseMessage);
 
             return new Response(JSON.stringify({
                 success: true,
@@ -90,7 +90,6 @@ export default async function handler(request) {
             });
         }
 
-        // ✅ RÉCUPÉRATION MESSAGES
         if (request.method === 'GET') {
             const { searchParams } = new URL(request.url);
             const roomId = searchParams.get('roomId');
@@ -135,7 +134,6 @@ export default async function handler(request) {
             });
         }
 
-        // ❌ Méthode non autorisée
         return new Response(JSON.stringify({
             code: "METHOD_NOT_ALLOWED",
             message: "Méthode non autorisée"
@@ -145,7 +143,7 @@ export default async function handler(request) {
         });
 
     } catch (error) {
-        console.error('❌ Erreur messages salon:', error);
+        console.error('Erreur messages salon:', error);
         return new Response(JSON.stringify({
             code: "SERVER_ERROR",
             message: "Erreur serveur: " + error.message

@@ -106,7 +106,6 @@ const getErrorMessage = (error: unknown): string => {
     return 'Une erreur inconnue est survenue'
 }
 
-// 🔥 Nouvelle fonction utilitaire pour convertir File en base64
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader()
@@ -176,7 +175,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
             const data = await response.json()
 
-            // 🔥 FIX: Replace messages instead of appending
             set({ messages: data, isLoading: false })
         } catch (error) {
             console.error('Erreur chargement messages:', error)
@@ -214,7 +212,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const newMessage = responseData.message || responseData
 
             set(state => {
-                // 🔥 FIX: Check if message already exists to avoid duplicates
                 const messageExists = state.messages.some(msg => msg.id === newMessage.id)
                 if (messageExists) {
                     return { isSending: false }
@@ -305,7 +302,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
             const messages = await response.json()
 
-            // 🔥 FIX: Replace roomMessages instead of appending
             set({ roomMessages: messages, isLoading: false })
         } catch (error) {
             console.error('Erreur chargement messages salon:', error)
@@ -337,7 +333,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const data = await response.json()
 
             set(state => {
-                // 🔥 FIX: Check if message already exists to avoid duplicates
                 const messageExists = state.roomMessages.some(msg => msg.id === data.message.id)
                 if (messageExists) {
                     return { isSending: false }

@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 
 export const config = {
-    runtime:  'edge', // Changed to nodejs
+    runtime:  'edge', 
 };
 
 const redis = Redis.fromEnv();
@@ -42,10 +42,10 @@ export default async function handler(request) {
             WHERE username = ${username}
         `;
 
-        console.log('📊 Utilisateurs trouvés:', result.rowCount);
+        console.log('Utilisateurs trouvés:', result.rowCount);
 
         if (result.rowCount === 0) {
-            console.log('❌ Utilisateur non trouvé');
+            console.log('Utilisateur non trouvé');
             return new Response(JSON.stringify({ 
                 error: "Identifiant ou mot de passe incorrect" 
             }), {
@@ -55,12 +55,12 @@ export default async function handler(request) {
         }
 
         const user = result.rows[0];
-        console.log('🔍 Hash stocké:', user.password.substring(0, 20) + '...');
-        console.log('🔍 Hash fourni:', hashedPassword.substring(0, 20) + '...');
-        console.log('🔍 Match:', user.password === hashedPassword ? '✅ OUI' : '❌ NON');
+        console.log('Hash stocké:', user.password.substring(0, 20) + '...');
+        console.log('Hash fourni:', hashedPassword.substring(0, 20) + '...');
+        console.log('Match:', user.password === hashedPassword ? 'OUI' : 'NON');
 
         if (user.password !== hashedPassword) {
-            console.log('❌ Mot de passe incorrect');
+            console.log('Mot de passe incorrect');
             return new Response(JSON.stringify({ 
                 error: "Identifiant ou mot de passe incorrect" 
             }), {
@@ -69,7 +69,7 @@ export default async function handler(request) {
             });
         }
 
-        console.log('✅ Authentification réussie');
+        console.log('Authentification réussie');
 
         await sql`
             UPDATE users 
@@ -85,12 +85,11 @@ export default async function handler(request) {
             externalId: user.external_id
         };
 
-        // Fixed: Added backticks around template string
         await redis.set(`session:${token}`, JSON.stringify(userSession), { ex: 3600 });
         await redis.set(token, JSON.stringify(userSession), { ex: 3600 });
         await redis.hset("users", { [userSession.id]: JSON.stringify(userSession) });
 
-        console.log('✅ Session créée');
+        console.log('Session créée');
 
         return new Response(JSON.stringify({
             token: token,
@@ -100,7 +99,7 @@ export default async function handler(request) {
             headers: { 'content-type': 'application/json' },
         });
     } catch (error) {
-        console.error('💥 Erreur login:', error);
+        console.error('Erreur login:', error);
         return new Response(JSON.stringify({
             error: "Erreur serveur",
             details: error.message

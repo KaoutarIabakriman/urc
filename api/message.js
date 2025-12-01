@@ -80,7 +80,7 @@ export default async function handler(request) {
             conversationId = newConversation[0].id;
         }
 
-        // ✅ Insertion message SANS image_data
+    
         const result = await client.sql`
             INSERT INTO messages (conversation_id, sender_id, content, message_type)
             VALUES (${conversationId}, ${user.id}, ${content}, ${type})
@@ -112,7 +112,7 @@ export default async function handler(request) {
         });
 
     } catch (error) {
-        console.error('❌ Erreur API Message:', error);
+        console.error('Erreur API Message:', error);
         return new Response(JSON.stringify({
             code: "SERVER_ERROR",
             message: "Erreur interne: " + error.message

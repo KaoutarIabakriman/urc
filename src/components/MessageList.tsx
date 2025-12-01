@@ -166,7 +166,6 @@ const MessageList: React.FC = () => {
                         const isCurrentUser = message.sender_id === currentUser?.id
                         const isSystemMessage = message.sender_id === 'system'
 
-                        // 🔥 FIX: Vérifier image_url ET image_data
                         const hasImage = !!((message as any).image_url || (message as any).image_data)
                         const imageUrl = (message as any).image_url || (message as any).image_data
 

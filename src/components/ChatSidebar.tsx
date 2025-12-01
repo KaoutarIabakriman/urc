@@ -308,7 +308,6 @@ const ChatSidebar: React.FC = () => {
                 </Alert>
             )}
 
-            {/* 🔥 PLUS DE SPINNER - Chargement silencieux */}
 
             {currentUser && (
                 <List sx={{ p: 0, overflow: 'auto', height: 'calc(100vh - 180px)' }}>

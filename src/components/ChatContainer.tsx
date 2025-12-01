@@ -56,7 +56,6 @@ const ChatContainer: React.FC = () => {
     const [isInitialized, setIsInitialized] = useState(false)
     const [lastProcessedUrl, setLastProcessedUrl] = useState<string>('')
 
-    // Chargement initial des données - UNE SEULE FOIS
     useEffect(() => {
         console.log('Chargement initial des données...')
         const loadData = async () => {
@@ -67,7 +66,6 @@ const ChatContainer: React.FC = () => {
         loadData()
     }, [fetchUsers, fetchRooms])
 
-    // 🔥 FIX: Improved polling without duplication
     useEffect(() => {
         if (!isInitialized) return
 
@@ -75,16 +73,16 @@ const ChatContainer: React.FC = () => {
 
         const pollMessages = async () => {
             if (currentRoom) {
-                console.log('🔄 Rafraîchissement messages salon:', currentRoom.id)
+                console.log('Rafraîchissement messages salon:', currentRoom.id)
                 await loadRoomMessages(currentRoom.id)
             } else if (currentConversation?.target_user_id) {
-                console.log('🔄 Rafraîchissement messages privés:', currentConversation.target_user_id)
+                console.log('Rafraîchissement messages privés:', currentConversation.target_user_id)
                 await loadMessages(currentConversation.target_user_id!)
             }
         }
 
         if (currentRoom || currentConversation?.target_user_id) {
-            console.log('🔄 Démarrage polling')
+            console.log('Démarrage polling')
 
             // Poll immediately first
             pollMessages()
@@ -96,7 +94,7 @@ const ChatContainer: React.FC = () => {
         // Nettoyage à la fin
         return () => {
             if (intervalId) {
-                console.log('🛑 Arrêt du polling')
+                console.log('Arrêt du polling')
                 clearInterval(intervalId)
             }
         }
@@ -183,5 +181,4 @@ const ChatContainer: React.FC = () => {
     )
 }
 
-// 🔥 IMPORTANT : Export par défaut
 export default ChatContainer

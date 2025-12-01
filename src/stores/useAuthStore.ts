@@ -1,4 +1,3 @@
-// useAuthStore.ts
 import { create } from 'zustand'
 
 export interface User {
@@ -30,16 +29,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     error: null,
 
     initialize: async () => {
-        console.log('🔄 Initialisation du store auth...')
+        console.log('Initialisation du store auth...')
         await get().checkAuth()
     },
 
-    // ✅ NEW REGISTER METHOD
     register: async (username: string, email: string, password: string) => {
         set({ isLoading: true, error: null })
 
         try {
-            console.log('📝 Tentative inscription:', username, email)
+            console.log('Tentative inscription:', username, email)
 
             const response = await fetch('/api/register', {
                 method: 'POST',
@@ -49,17 +47,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 body: JSON.stringify({ username, email, password }),
             })
 
-            console.log('📡 Réponse register - Status:', response.status)
+            console.log('Réponse register - Status:', response.status)
 
             const textResponse = await response.text()
-            console.log('📄 Texte brut:', textResponse)
+            console.log('Texte brut:', textResponse)
 
             let data
             try {
                 data = JSON.parse(textResponse)
-                console.log('✅ JSON parsé:', data)
+                console.log('JSON parsé:', data)
             } catch (parseError) {
-                console.error('❌ Erreur parsing JSON:', parseError)
+                console.error('Erreur parsing JSON:', parseError)
                 throw new Error('Réponse serveur invalide')
             }
 
@@ -86,9 +84,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 error: null,
             })
 
-            console.log('✅ Inscription réussie!')
+            console.log('Inscription réussie!')
         } catch (error) {
-            console.error('❌ Erreur inscription:', error)
+            console.error('Erreur inscription:', error)
             set({
                 user: null,
                 token: null,
@@ -187,7 +185,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
             console.log('🔍 Vérification session avec token:', token.substring(0, 20) + '...')
 
-            const response = await fetch('/api/session', {
+            const response = await fetch('/lib/session', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

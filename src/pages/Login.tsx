@@ -36,7 +36,6 @@ const Login: React.FC = () => {
         try {
             console.log('Connexion via store pour:', username)
 
-            // 🔥 UTILISER UNIQUEMENT LE STORE
             await login(username, password)
 
             console.log('Connexion réussie, redirection vers /chat')
