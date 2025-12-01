@@ -26,7 +26,8 @@ const Register: React.FC = () => {
     const [success, setSuccess] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const usernameRef = useRef<HTMLInputElement>(null)
-
+ const { register: registerUser } = useAuthStore() // Add this
+    const navigate = useNavigate()
     useEffect(() => {
         if (usernameRef.current) {
             usernameRef.current.focus()
@@ -40,8 +41,7 @@ const Register: React.FC = () => {
         })
     }
 
- const { register: registerUser } = useAuthStore() // Add this
-    const navigate = useNavigate()
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
