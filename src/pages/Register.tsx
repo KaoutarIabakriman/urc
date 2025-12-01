@@ -26,7 +26,7 @@ const Register: React.FC = () => {
     const [success, setSuccess] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const usernameRef = useRef<HTMLInputElement>(null)
- const { register: registerUser } = useAuthStore() // Add this
+ const { register: registerUser } = useAuthStore() 
     const navigate = useNavigate()
     useEffect(() => {
         if (usernameRef.current) {
@@ -65,7 +65,7 @@ const Register: React.FC = () => {
             setSuccess('Compte créé avec succès ! Redirection...')
             
             setTimeout(() => {
-                navigate('/chat') // Navigate to chat after successful registration
+                navigate('/chat') 
             }, 1500)
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'inscription'

@@ -20,7 +20,6 @@ export default async function handler(request) {
 
         const client = await db.connect();
 
-        // ✅ ENVOI MESSAGE
         if (request.method === 'POST') {
             console.log('POST room-messages - Parsing JSON...');
             let roomId, content;

@@ -1,25 +1,84 @@
 import { sql } from '@vercel/postgres';
-import { checkSession, unauthorizedResponse } from '../lib/session';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export const config = { 
-    runtime: 'nodejs' // ✅ Changed from 'edge'
+    runtime: 'edge' 
 };
 
+async function getUserSession(token) {
+    try {
+        if (!token) return null;
+        
+        const userData = await redis.get(`session:${token}`);
+        
+        if (userData && typeof userData === 'object') {
+            return userData;
+        }
+        
+        if (typeof userData === 'string') {
+            try {
+                return JSON.parse(userData);
+            } catch {
+                return null;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Erreur récupération session:', error);
+        return null;
+    }
+}
+
+async function checkSession(request) {
+    try {
+        const authHeader = request.headers.get('authorization');
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return null;
+        }
+        
+        const token = authHeader.substring(7);
+        
+        if (!token) {
+            return null;
+        }
+        
+        const userSession = await getUserSession(token);
+        
+        if (!userSession) {
+            return null;
+        }
+        
+        console.log('Session valide pour:', userSession.username);
+        return userSession;
+    } catch (error) {
+        console.error('Erreur vérification session:', error);
+        return null;
+    }
+}
+
 export default async function handler(request) {
-    console.log('🔐 Début /api/users');
+    console.log('Début /api/users');
     
     try {
         const user = await checkSession(request);
         
         if (!user) {
             console.log('Session invalide');
-            return unauthorizedResponse();
+            return new Response(JSON.stringify({ error: 'Non autorisé' }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
         
-        console.log('Session valide pour:', user.username);
+        console.log('Session valide pour:', user.username, 'ID:', user.id);
+        
+        const startTime = Date.now();
         
         try {
-            // Update last login
             await sql`
                 UPDATE users 
                 SET last_login = NOW() 
@@ -28,7 +87,6 @@ export default async function handler(request) {
             
             console.log('Présence mise à jour pour:', user.username);
             
-            // Get all users with online status
             const result = await sql`
                 SELECT 
                     user_id AS id,
@@ -44,16 +102,16 @@ export default async function handler(request) {
                 ORDER BY username
             `;
             
-            console.log(`${result.rows.length} utilisateurs récupérés`);
-            
             const onlineCount = result.rows.filter(u => u.is_online).length;
+            console.log(`${result.rows.length} utilisateurs récupérés`);
             console.log(`${onlineCount} utilisateurs en ligne`);
             
+            // Retourner rapidement
             return new Response(JSON.stringify(result.rows), {
                 status: 200,
                 headers: {
-                    'content-type': 'application/json',
-                    'cache-control': 'no-cache, no-store, must-revalidate'
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
                 }
             });
             
@@ -64,7 +122,7 @@ export default async function handler(request) {
                 details: dbError.message 
             }), {
                 status: 500,
-                headers: { 'content-type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' }
             });
         }
         
@@ -75,7 +133,7 @@ export default async function handler(request) {
             details: error.message 
         }), {
             status: 500,
-            headers: { 'content-type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' }
         });
     }
 }

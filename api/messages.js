@@ -33,7 +33,6 @@ export default async function handler(request) {
 
         const client = await db.connect();
 
-        // Recherche conversation existante
         const { rows: conversationRows } = await client.sql`
             SELECT id FROM conversations
             WHERE (user1_id = ${user.id} AND user2_id = ${targetUserId})
@@ -49,7 +48,6 @@ export default async function handler(request) {
 
         const conversationId = conversationRows[0].id;
 
-        // Récupération messages
         const result = await client.sql`
             SELECT
                 m.id,

@@ -127,33 +127,85 @@ export const useChatStore = create<ChatState>((set, get) => ({
     currentRoom: null,
 
     fetchUsers: async () => {
-        set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null })
 
-        try {
-            const response = await fetch('/api/users', {
-                method: 'GET',
-                headers: getAuthHeaders(),
+    try {
+        const token = localStorage.getItem('auth_token')
+        
+        if (!token) {
+            set({ 
+                isLoading: false, 
+                error: 'Token manquant - Veuillez vous reconnecter',
+                users: []
             })
-
-            if (response.status === 401) {
-                throw new Error('Session expirée - Veuillez vous reconnecter')
-            }
-
-            if (!response.ok) {
-                throw new Error(`Erreur ${response.status}`)
-            }
-
-            const data = await response.json()
-            set({ users: data, isLoading: false })
-        } catch (error) {
-            console.error('Erreur récupération utilisateurs:', error)
-            set({
-                error: getErrorMessage(error),
-                isLoading: false,
-            })
-            throw error
+            return 
         }
-    },
+
+        console.log('Appel /api/users...')
+
+        const response = await fetch('/api/users', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+        })
+
+        console.log('Response status:', response.status)
+
+        if (response.status === 401) {
+            localStorage.removeItem('auth_token')
+            set({ 
+                isLoading: false, 
+                error: 'Session expirée - Veuillez vous reconnecter',
+                users: []
+            })
+            return 
+        }
+
+        if (!response.ok) {
+           
+            let errorMessage = `Erreur ${response.status}`
+            try {
+                const errorData = await response.json()
+                console.error('Erreur API:', errorData)
+                errorMessage = errorData.message || errorData.error || errorData.details || errorMessage
+            } catch (parseError) {
+                try {
+                    const textError = await response.text()
+                    console.error('Erreur texte:', textError)
+                    errorMessage = textError || errorMessage
+                } catch {
+                    console.error('Impossible de parser l\'erreur')
+                }
+            }
+            
+            set({ 
+                isLoading: false, 
+                error: errorMessage,
+                users: []
+            })
+            return 
+        }
+
+        const data = await response.json()
+        console.log('Data reçue:', data)
+        
+        const users = Array.isArray(data) ? data : (data.users || [])
+        
+        console.log('Users fetched:', users.length, 'utilisateurs')
+        set({ users, isLoading: false, error: null })
+        
+    } catch (error) {
+        console.error('Exception fetchUsers:', error)
+        set({
+            error: getErrorMessage(error),
+            isLoading: false,
+            users: []
+        })
+        
+    }
+},
 
     loadMessages: async (targetUserId: string) => {
         set({ isLoading: true, error: null })

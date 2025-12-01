@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 
 export const config = {
-    runtime:  'edge', 
+    runtime: 'edge', 
 };
 
 const redis = Redis.fromEnv();
@@ -32,10 +32,10 @@ async function hashPassword(username, password) {
 export default async function handler(request) {
     try {
         const { username, password } = await request.json();
-        console.log('🔐 Tentative de login pour:', username);
+        console.log('Tentative de login pour:', username);
 
         const hashedPassword = await hashPassword(username, password);
-        console.log('🔐 Hash généré:', hashedPassword.substring(0, 20) + '...');
+        console.log('Hash généré:', hashedPassword.substring(0, 20) + '...');
 
         const result = await sql`
             SELECT * FROM users 
@@ -98,6 +98,7 @@ export default async function handler(request) {
             status: 200,
             headers: { 'content-type': 'application/json' },
         });
+
     } catch (error) {
         console.error('Erreur login:', error);
         return new Response(JSON.stringify({

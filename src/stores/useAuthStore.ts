@@ -183,7 +183,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: true })
 
         try {
-            console.log('🔍 Vérification session avec token:', token.substring(0, 20) + '...')
+            console.log('Vérification session avec token:', token.substring(0, 20) + '...')
 
             const response = await fetch('/lib/session', {
                 method: 'GET',

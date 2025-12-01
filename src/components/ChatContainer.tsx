@@ -57,15 +57,22 @@ const ChatContainer: React.FC = () => {
     const [lastProcessedUrl, setLastProcessedUrl] = useState<string>('')
 
     useEffect(() => {
-        console.log('Chargement initial des données...')
-        const loadData = async () => {
+    console.log('Chargement initial des données...')
+    
+    const loadData = async () => {
+        try {
             await fetchUsers()
             await fetchRooms()
+            console.log('Données chargées')
+        } catch (error) {
+            console.error('Erreur chargement:', error)
+        } finally {
             setIsInitialized(true)
         }
-        loadData()
-    }, [fetchUsers, fetchRooms])
-
+    }
+    
+    loadData()
+}, []) 
     useEffect(() => {
         if (!isInitialized) return
 
@@ -84,14 +91,11 @@ const ChatContainer: React.FC = () => {
         if (currentRoom || currentConversation?.target_user_id) {
             console.log('Démarrage polling')
 
-            // Poll immediately first
             pollMessages()
 
-            // Then set interval
             intervalId = setInterval(pollMessages, 3000)
         }
 
-        // Nettoyage à la fin
         return () => {
             if (intervalId) {
                 console.log('Arrêt du polling')
@@ -100,7 +104,6 @@ const ChatContainer: React.FC = () => {
         }
     }, [currentRoom, currentConversation, isInitialized, loadRoomMessages, loadMessages])
 
-    // Gestion des paramètres d'URL
     useEffect(() => {
         if (!isInitialized) {
             console.log('En attente de l\'initialisation...')
@@ -116,7 +119,6 @@ const ChatContainer: React.FC = () => {
         console.log('Traitement URL - Type:', type, 'ID:', id)
         console.log('État actuel - Conversation:', currentConversation?.name, 'Room:', currentRoom?.name)
 
-        // Éviter les mises à jour inutiles
         const isAlreadyOnCorrectConversation = type === 'user' && currentConversation?.target_user_id === id
         const isAlreadyOnCorrectRoom = type === 'room' && currentRoom?.id === id
 

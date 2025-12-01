@@ -25,7 +25,6 @@ async function hashPassword(username, password) {
     return arrayBufferToBase64(hash);
 }
 
-// ✅ Pages Router format: export default function
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Méthode non autorisée' });
@@ -33,8 +32,7 @@ export default async function handler(req, res) {
 
     try {
         const { username, email, password } = req.body;
-
-        console.log('📨 Inscription demandée pour:', username, email);
+        console.log('Inscription demandée pour:', username, email);
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -49,24 +47,22 @@ export default async function handler(req, res) {
         }
 
         const hashedPassword = await hashPassword(username, password);
-        console.log('🔐 Mot de passe haché:', hashedPassword.substring(0, 20) + '...');
+        console.log('Mot de passe haché:', hashedPassword.substring(0, 20) + '...');
 
         const externalId = crypto.randomUUID();
 
-        // Check if user exists
         const checkUser = await sql`
             SELECT user_id FROM users
             WHERE username = ${username} OR email = ${email}
         `;
 
         if (checkUser.rows.length > 0) {
-            console.log('❌ Utilisateur déjà existant');
+            console.log('Utilisateur déjà existant');
             return res.status(409).json({
                 error: 'Utilisateur ou email déjà existant'
             });
         }
 
-        // Insert new user
         const result = await sql`
             INSERT INTO users (username, email, password, created_on, external_id)
             VALUES (${username}, ${email}, ${hashedPassword}, NOW(), ${externalId})
@@ -74,10 +70,9 @@ export default async function handler(req, res) {
         `;
 
         const newUser = result.rows[0];
-        console.log('✅ Utilisateur créé:', newUser);
+        console.log('Utilisateur créé:', newUser);
 
         const token = crypto.randomUUID();
-
         const user = {
             id: newUser.user_id,
             username: newUser.username,
@@ -85,12 +80,11 @@ export default async function handler(req, res) {
             externalId: newUser.external_id
         };
 
-        // Store session in Redis
         await redis.set(`session:${token}`, JSON.stringify(user), { ex: 3600 });
         await redis.set(token, JSON.stringify(user), { ex: 3600 });
         await redis.hset("users", { [user.id]: JSON.stringify(user) });
 
-        console.log('✅ Session créée');
+        console.log('Session créée');
 
         return res.status(201).json({
             user: {
@@ -102,8 +96,8 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error('💥 Erreur inscription:', error);
-        console.error('💥 Stack:', error.stack);
+        console.error('Erreur inscription:', error);
+        console.error('Stack:', error.stack);
         return res.status(500).json({
             error: "Erreur lors de l'inscription",
             details: error.message || String(error)
