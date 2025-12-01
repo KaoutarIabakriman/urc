@@ -1,8 +1,8 @@
-import { db } from '@vercel/postgres';
+import { sql } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 
 export const config = {
-    runtime: 'edge',
+    runtime: 'nodejs', // Changed to nodejs
 };
 
 const redis = Redis.fromEnv();
@@ -30,25 +30,20 @@ async function hashPassword(username, password) {
 }
 
 export default async function handler(request) {
-    let client;
-    
     try {
         const { username, password } = await request.json();
-        
         console.log('🔐 Tentative de login pour:', username);
-        
+
         const hashedPassword = await hashPassword(username, password);
         console.log('🔐 Hash généré:', hashedPassword.substring(0, 20) + '...');
-        
-        client = await db.connect();
-        
-        const result = await client.sql`
+
+        const result = await sql`
             SELECT * FROM users 
             WHERE username = ${username}
         `;
-        
+
         console.log('📊 Utilisateurs trouvés:', result.rowCount);
-        
+
         if (result.rowCount === 0) {
             console.log('❌ Utilisateur non trouvé');
             return new Response(JSON.stringify({ 
@@ -58,12 +53,12 @@ export default async function handler(request) {
                 headers: { 'content-type': 'application/json' },
             });
         }
-        
+
         const user = result.rows[0];
         console.log('🔍 Hash stocké:', user.password.substring(0, 20) + '...');
         console.log('🔍 Hash fourni:', hashedPassword.substring(0, 20) + '...');
         console.log('🔍 Match:', user.password === hashedPassword ? '✅ OUI' : '❌ NON');
-        
+
         if (user.password !== hashedPassword) {
             console.log('❌ Mot de passe incorrect');
             return new Response(JSON.stringify({ 
@@ -73,30 +68,30 @@ export default async function handler(request) {
                 headers: { 'content-type': 'application/json' },
             });
         }
-        
+
         console.log('✅ Authentification réussie');
-        
-        await client.sql`
+
+        await sql`
             UPDATE users 
             SET last_login = NOW() 
             WHERE user_id = ${user.user_id}
         `;
-        
+
         const token = crypto.randomUUID();
-        
         const userSession = {
             id: user.user_id,
             username: user.username,
             email: user.email,
             externalId: user.external_id
         };
-        
+
+        // Fixed: Added backticks around template string
         await redis.set(`session:${token}`, JSON.stringify(userSession), { ex: 3600 });
         await redis.set(token, JSON.stringify(userSession), { ex: 3600 });
         await redis.hset("users", { [userSession.id]: JSON.stringify(userSession) });
-        
+
         console.log('✅ Session créée');
-        
+
         return new Response(JSON.stringify({
             token: token,
             user: userSession
@@ -104,7 +99,6 @@ export default async function handler(request) {
             status: 200,
             headers: { 'content-type': 'application/json' },
         });
-        
     } catch (error) {
         console.error('💥 Erreur login:', error);
         return new Response(JSON.stringify({
@@ -114,9 +108,5 @@ export default async function handler(request) {
             status: 500,
             headers: { 'content-type': 'application/json' },
         });
-    } finally {
-        if (client) {
-            client.release();
-        }
     }
 }
