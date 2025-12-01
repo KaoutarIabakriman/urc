@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 
 export const config = {
-    runtime: 'nodejs', // Changed to nodejs
+    runtime:  'edge', // Changed to nodejs
 };
 
 const redis = Redis.fromEnv();
