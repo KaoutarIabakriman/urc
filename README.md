@@ -1,17 +1,5 @@
 # UBO Relay Chat
 
-[Lien du cours](https://docs.google.com/presentation/d/1p-KtmWjFnfrZP-NrXgGACX2TSRNJXMdJ)
-
-## Objectifs
-
-Créer une application de messagerie type IRC / WhatApp : [démo](https://urc.vercel.app/)
-
-TP réalisable en binômes ; mais dans ce cas, je veux un accès au repos Git pour vérifier la contribution équitable de chacun.
-
-Le but de ce TP est de fournir un cadre permettant l'exploration et l'expérimentation.
-A vous de vous plonger dans la documentation des différents outils utilisés (Redis, Node.js, Crypto, Push API) pour comprendre leur fonctionnement et les prendre en main.
-La poursuite d'idées personnelles et l'ajout de fonctionnalités additionnelles sont vivement encouragées.
-
 
 ## Intro
 
