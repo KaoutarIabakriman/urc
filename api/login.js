@@ -7,7 +7,6 @@ export const config = {
 
 const redis = Redis.fromEnv();
 
-// ✅ MÊMES FONCTIONS QUE REGISTER.TS
 function stringToArrayBuffer(str) {
     const encoder = new TextEncoder();
     return encoder.encode(str);
@@ -38,13 +37,11 @@ export default async function handler(request) {
         
         console.log('🔐 Tentative de login pour:', username);
         
-        // Hash le mot de passe avec la MÊME méthode que register
         const hashedPassword = await hashPassword(username, password);
         console.log('🔐 Hash généré:', hashedPassword.substring(0, 20) + '...');
         
         client = await db.connect();
         
-        // Recherche l'utilisateur
         const result = await client.sql`
             SELECT * FROM users 
             WHERE username = ${username}
@@ -63,11 +60,10 @@ export default async function handler(request) {
         }
         
         const user = result.rows[0];
-        console.log('🔍 Hash stocké en DB:', user.password.substring(0, 20) + '...');
+        console.log('🔍 Hash stocké:', user.password.substring(0, 20) + '...');
         console.log('🔍 Hash fourni:', hashedPassword.substring(0, 20) + '...');
         console.log('🔍 Match:', user.password === hashedPassword ? '✅ OUI' : '❌ NON');
         
-        // Vérifie le mot de passe
         if (user.password !== hashedPassword) {
             console.log('❌ Mot de passe incorrect');
             return new Response(JSON.stringify({ 
@@ -78,16 +74,14 @@ export default async function handler(request) {
             });
         }
         
-        console.log('✅ Authentification réussie pour:', user.username);
+        console.log('✅ Authentification réussie');
         
-        // Mise à jour du last_login
         await client.sql`
             UPDATE users 
             SET last_login = NOW() 
             WHERE user_id = ${user.user_id}
         `;
         
-        // Génération du token
         const token = crypto.randomUUID();
         
         const userSession = {
@@ -97,14 +91,11 @@ export default async function handler(request) {
             externalId: user.external_id
         };
         
-        console.log('💾 Stockage session Redis...');
-        
-        // Stockage dans Redis
         await redis.set(`session:${token}`, JSON.stringify(userSession), { ex: 3600 });
         await redis.set(token, JSON.stringify(userSession), { ex: 3600 });
         await redis.hset("users", { [userSession.id]: JSON.stringify(userSession) });
         
-        console.log('✅ Session créée avec succès');
+        console.log('✅ Session créée');
         
         return new Response(JSON.stringify({
             token: token,

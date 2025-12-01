@@ -52,11 +52,9 @@ export default async function handler(request) {
 
         console.log('📨 Inscription demandée pour:', username, email);
 
-        // Validation des données
         if (!username || !email || !password) {
             return new Response(JSON.stringify({
-                error: 'Données manquantes',
-                received: { username: !!username, email: !!email, password: !!password }
+                error: 'Données manquantes'
             }), {
                 status: 400,
                 headers: { 'content-type': 'application/json' },
@@ -72,19 +70,14 @@ export default async function handler(request) {
             });
         }
 
-        // Hash du mot de passe
         const hashedPassword = await hashPassword(username, password);
         console.log('🔐 Mot de passe haché:', hashedPassword.substring(0, 20) + '...');
 
-        // Connexion à la DB
         client = await db.connect();
         console.log('✅ Connexion DB établie');
 
         const externalId = generateUUID();
-        console.log('🆔 External ID généré:', externalId);
 
-        // Vérifier si l'utilisateur existe déjà
-        console.log('🔍 Vérification utilisateur existant...');
         const checkUser = await client.sql`
             SELECT user_id FROM users
             WHERE username = ${username} OR email = ${email}
@@ -100,24 +93,16 @@ export default async function handler(request) {
             });
         }
 
-        // Insertion du nouvel utilisateur
-        console.log('💾 Insertion du nouvel utilisateur...');
         const result = await client.sql`
             INSERT INTO users (username, email, password, created_on, external_id)
             VALUES (${username}, ${email}, ${hashedPassword}, NOW(), ${externalId})
             RETURNING user_id, username, email, external_id
         `;
 
-        if (!result.rows || result.rows.length === 0) {
-            throw new Error('Aucun utilisateur créé');
-        }
-
         const newUser = result.rows[0];
         console.log('✅ Utilisateur créé:', newUser);
 
-        // Génération du token
         const token = crypto.randomUUID();
-        console.log('🔑 Token généré:', token.substring(0, 20) + '...');
 
         const user = {
             id: newUser.user_id,
@@ -126,12 +111,11 @@ export default async function handler(request) {
             externalId: newUser.external_id
         };
 
-        // Stockage dans Redis
-        console.log('💾 Stockage Redis...');
         await redis.set(`session:${token}`, JSON.stringify(user), { ex: 3600 });
         await redis.set(token, JSON.stringify(user), { ex: 3600 });
         await redis.hset("users", { [user.id]: JSON.stringify(user) });
-        console.log('✅ Session stockée dans Redis');
+
+        console.log('✅ Session créée');
 
         return new Response(JSON.stringify({
             user: {
@@ -146,25 +130,10 @@ export default async function handler(request) {
         });
 
     } catch (error) {
-        console.error('💥 Erreur complète:', error);
-        console.error('💥 Type d\'erreur:', error.constructor.name);
-        console.error('💥 Message:', error.message);
-        console.error('💥 Stack:', error.stack);
-
-        // Erreur de contrainte unique
-        if (error.code === '23505') {
-            return new Response(JSON.stringify({
-                error: 'Utilisateur ou email déjà existant'
-            }), {
-                status: 409,
-                headers: { 'content-type': 'application/json' },
-            });
-        }
-
+        console.error('💥 Erreur inscription:', error);
         return new Response(JSON.stringify({
             error: "Erreur lors de l'inscription",
-            details: error.message,
-            code: error.code || 'UNKNOWN'
+            details: error.message
         }), {
             status: 500,
             headers: { 'content-type': 'application/json' },
@@ -173,7 +142,6 @@ export default async function handler(request) {
     } finally {
         if (client) {
             client.release();
-            console.log('🔌 Connexion DB fermée');
         }
     }
 }
